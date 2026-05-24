@@ -5,6 +5,7 @@ databases:
     user: ordering_system
 
 services:
+  # Backend (Django)
   - type: web
     name: ordering-system-backend
     runtime: python
@@ -25,6 +26,30 @@ services:
           name: ordering-system-db
           property: connectionString
       - key: FRONTEND_URL
-        value: https://ordering-system-6rn1.vercel.app
+        value: https://ordering-system-1-up16.onrender.com
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1,.onrender.com
+
+      # Email configuration (Gmail SMTP)
+      # IMPORTANT: Set EMAIL_HOST_PASSWORD only in the Render Dashboard (never commit it here)
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "true"
+      - key: EMAIL_HOST_USER
+        value: mathewpolinar5@gmail.com          # ← Replace with your real Gmail
+      - key: DEFAULT_FROM_EMAIL
+        value: mathewpolinar5@gmail.com          # ← Replace with your real Gmail
+
+  # Frontend (React - Static Site)
+  - type: web
+    name: ordering-system-1-up16
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ordering-system-backend.onrender.com   # ← Update this if your backend URL is different
