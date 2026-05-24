@@ -21,19 +21,11 @@ The app uses `EXPO_PUBLIC_API_URL` when it is set.
 
 For local development on Android emulator, the app falls back to your machine's Expo host or `10.0.2.2`.
 
-For Expo Go on a physical device or for a standalone APK, set a real backend URL before building:
+For standalone APK builds (`eas build`), the production URL is automatically configured in `eas.json` build profiles.
 
-```bash
-set EXPO_PUBLIC_API_URL=https://ordering-system-15kz.onrender.com
-```
+The code also has a hardcoded production fallback for release builds.
 
-On Windows PowerShell for one session:
-
-```powershell
-$env:EXPO_PUBLIC_API_URL = 'https://ordering-system-15kz.onrender.com'
-```
-
-If you change backend hosts, update the environment variable before rebuilding the APK.
+If you change backend hosts, update the URL in `eas.json` (under `build.preview.env` and `build.production.env`) and in `src/api/client.ts` (`FALLBACK_RELEASE_API_URL`), then rebuild the APK.
 
 ## Build APK
 

@@ -6,10 +6,17 @@ import Constants from 'expo-constants'
 const FALLBACK_LAN_HOST = '192.168.254.121:8000'
 const FALLBACK_RELEASE_API_URL = 'https://ordering-system-15kz.onrender.com/api/v1'
 
+const normalizeApiBaseUrl = (value: string) => {
+  const trimmed = value.trim().replace(/\/$/, '')
+  if (trimmed.endsWith('/api/v1')) return trimmed
+  if (trimmed.endsWith('/api')) return `${trimmed}/v1`
+  return `${trimmed}/api/v1`
+}
+
 const resolveApiBaseUrl = () => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
   if (envUrl) {
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`
+    return normalizeApiBaseUrl(envUrl)
   }
 
   if (Platform.OS === 'web') {
@@ -22,15 +29,16 @@ const resolveApiBaseUrl = () => {
     return `http://${host}:8000/api/v1`
   }
 
-  if (!__DEV__) {
-    return FALLBACK_RELEASE_API_URL
+  // Development only: emulator / LAN fallbacks (Expo Go, dev builds)
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:8000/api/v1'
+    }
+    return `http://${FALLBACK_LAN_HOST}/api/v1`
   }
 
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000/api/v1'
-  }
-
-  return `http://${FALLBACK_LAN_HOST}/api/v1`
+  // Production standalone APK / release build: use deployed backend
+  return FALLBACK_RELEASE_API_URL
 }
 
 const API_BASE_URL = resolveApiBaseUrl()
