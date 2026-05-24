@@ -1,18 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/v1/(.*)",
-      "destination": "https://ordering-system-15kz.onrender.com/api/v1/$1"
-    },
-    {
-      "source": "/api/token/(.*)",
-      "destination": "https://ordering-system-15kz.onrender.com/api/token/$1"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "https://ordering-system-15kz.onrender.com/api/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
