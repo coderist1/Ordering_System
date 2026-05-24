@@ -140,6 +140,24 @@ CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 
+# Include FRONTEND_URL (and any EXTRA_CORS_ORIGINS) in allowed origins when
+# wildcard CORS is not enabled. This helps deployments (Vercel/Render) where
+# the frontend origin is provided via `FRONTEND_URL` or via env vars.
+if not CORS_ALLOW_ALL_ORIGINS:
+    try:
+        frontend_origin = FRONTEND_URL.rstrip('/')
+    except Exception:
+        frontend_origin = ''
+
+    if frontend_origin and frontend_origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(frontend_origin)
+
+    # Optional: allow adding more origins via EXTRA_CORS_ORIGINS env var
+    extra_origins = env_list('EXTRA_CORS_ORIGINS', '')
+    for origin in extra_origins:
+        if origin and origin not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(origin)
+
 DJOSER = {
     'SEND_ACTIVATION_EMAIL': env_bool('SEND_ACTIVATION_EMAIL', True),
     'USER_CREATE_PASSWORD_RETYPE': True,
