@@ -38,8 +38,8 @@ if [ ! -f .env ]; then
 fi
 
 echo "[6/10] Running migrations and static collection"
-python manage.py migrate
-python manage.py collectstatic --noinput
+chmod +x build.sh
+bash build.sh
 
 echo "[7/10] Installing Gunicorn systemd service"
 sudo cp deploy/gunicorn.service /etc/systemd/system/ordering-system.service
