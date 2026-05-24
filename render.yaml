@@ -30,18 +30,23 @@ services:
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1,.onrender.com
 
-      # Email configuration (Gmail SMTP)
-      # IMPORTANT: Set EMAIL_HOST_PASSWORD only in the Render Dashboard (never commit it here)
-      - key: EMAIL_HOST
-        value: smtp.gmail.com
-      - key: EMAIL_PORT
-        value: "587"
-      - key: EMAIL_USE_TLS
-        value: "true"
-      - key: EMAIL_HOST_USER
-        value: mathewpolinar5@gmail.com          # ← Replace with your real Gmail
-      - key: DEFAULT_FROM_EMAIL
-        value: mathewpolinar5@gmail.com          # ← Replace with your real Gmail
+      # Email configuration - Using Resend (recommended)
+      # IMPORTANT: Never commit your real API key here.
+      # Set RESEND_API_KEY only in the Render Dashboard under Environment.
+      - key: RESEND_API_KEY
+        value: ""   # ← Set the real key in Render Dashboard
+
+      # (Optional fallback - Gmail SMTP - can be removed later)
+      # - key: EMAIL_HOST
+      #   value: smtp.gmail.com
+      # - key: EMAIL_PORT
+      #   value: "587"
+      # - key: EMAIL_USE_TLS
+      #   value: "true"
+      # - key: EMAIL_HOST_USER
+      #   value: your@gmail.com
+      # - key: DEFAULT_FROM_EMAIL
+      #   value: your@gmail.com
 
   # Frontend (React - Static Site)
   - type: web

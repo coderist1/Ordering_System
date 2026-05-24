@@ -206,32 +206,16 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ─────────────────────────────────────────────
-#  EMAIL CONFIGURATION (Gmail SMTP)
+#  EMAIL CONFIGURATION (Resend)
 # ─────────────────────────────────────────────
 
-# Control email backend via environment variable
-# USE_CONSOLE_EMAIL=True  -> prints to console (development, no SMTP needed)
-# USE_CONSOLE_EMAIL=False -> sends real emails via Gmail SMTP (production/testing)
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+# We now use Resend for reliable email delivery.
+# Set RESEND_API_KEY in Render Dashboard (never commit the key).
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
 
-# ⚠️  IMPORTANT FOR GMAIL - FOLLOW THESE STEPS:
-# 1. Enable 2-Factor Authentication on your Google Account: https://myaccount.google.com/security
-# 2. Generate an App Password: https://myaccount.google.com/apppasswords
-#    - Select "Mail" and "Windows Computer" (or your platform)
-#    - Google will generate a 16-character password
-# 3. Copy that password to your .env file:
-#    EMAIL_HOST_USER=your-email@gmail.com
-#    EMAIL_HOST_PASSWORD=xxxx xxxx xxxx xxxx  (the 16-char password from Google)
-# 4. Set USE_CONSOLE_EMAIL=False in .env to use real    
-# 5. Test with: python manage.py shell
-#    >>> from django.core.mail import send_mail
-#    >>> send_mail('Test', 'Test message', 'from@gmail.com', ['to@gmail.com'], fail_silently=False)
+# Fallback / development - can be set to console backend if needed
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@yourdomain.com')
 
 # ─────────────────────────────────────────────
 #  FRONTEND URL (for activation links)

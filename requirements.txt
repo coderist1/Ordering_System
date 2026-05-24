@@ -19,3 +19,4 @@ drf-spectacular==0.29.0
 python-dotenv==1.0.0
 whitenoise==6.4.0
 setuptools>=70.0.0
+resend>=0.8.0
