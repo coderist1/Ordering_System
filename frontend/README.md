@@ -10,7 +10,7 @@ The frontend uses this variable at build/runtime:
 VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
 ```
 
-If frontend and backend are served from the same domain with reverse proxy, you can use:
+If frontend and backend are served from the same domain with reverse proxy, use the proxied same-origin path:
 
 ```bash
 VITE_API_BASE_URL=/api/v1
@@ -51,7 +51,7 @@ vercel
 3. Set production env var in Vercel project settings:
 
 ```bash
-VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
+VITE_API_BASE_URL=/api/v1
 ```
 
 4. Push production deploy:
@@ -71,5 +71,6 @@ vercel --prod
 
 ## Notes
 
-- `vercel.json` already includes SPA rewrite to `index.html`.
-- Ensure backend CORS allows your frontend domain.
+- `vercel.json` rewrites `/api/*` requests to the Render backend, so the browser stays on the Vercel origin.
+- Keep `VITE_API_BASE_URL=/api/v1` for the Vercel deployment.
+- If you point `VITE_API_BASE_URL` directly at Render, the browser will use cross-origin requests again and CORS must be configured on the backend.
