@@ -4,6 +4,7 @@ import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 
 const FALLBACK_LAN_HOST = '192.168.254.121:8000'
+const FALLBACK_RELEASE_API_URL = 'https://ordering-system-15kz.onrender.com/api/v1'
 
 const resolveApiBaseUrl = () => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
@@ -12,13 +13,17 @@ const resolveApiBaseUrl = () => {
   }
 
   if (Platform.OS === 'web') {
-    return '/api'
+    return '/api/v1'
   }
 
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri
   if (hostUri) {
     const host = hostUri.split(':')[0]
     return `http://${host}:8000/api/v1`
+  }
+
+  if (!__DEV__) {
+    return FALLBACK_RELEASE_API_URL
   }
 
   if (Platform.OS === 'android') {

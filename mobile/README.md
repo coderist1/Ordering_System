@@ -17,15 +17,35 @@ npm install
 
 ## API Configuration
 
-The app connects to `http://10.0.2.2:8000/api` by default (Android emulator).
+The app uses `EXPO_PUBLIC_API_URL` when it is set.
 
-For iOS simulator, update `mobile/src/api/client.ts`:
-```typescript
-const API_BASE_URL = 'http://localhost:8000/api'  // iOS simulator
-// const API_BASE_URL = 'http://10.0.2.2:8000/api'  // Android emulator
+For local development on Android emulator, the app falls back to your machine's Expo host or `10.0.2.2`.
+
+For Expo Go on a physical device or for a standalone APK, set a real backend URL before building:
+
+```bash
+set EXPO_PUBLIC_API_URL=https://ordering-system-15kz.onrender.com
 ```
 
-For physical device, use your computer's IP address.
+On Windows PowerShell for one session:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = 'https://ordering-system-15kz.onrender.com'
+```
+
+If you change backend hosts, update the environment variable before rebuilding the APK.
+
+## Build APK
+
+Use Expo Go for development testing, then build the APK with EAS:
+
+```bash
+cd mobile
+npx expo start
+eas build -p android --profile preview
+```
+
+The project already configures `preview` and `production` Android builds as APKs in `eas.json`.
 
 ## Features
 

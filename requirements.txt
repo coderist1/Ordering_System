@@ -12,8 +12,9 @@ sqlparse==0.5.5
 tzdata==2025.3
 pypdf==5.3.1
 beautifulsoup4==4.13.3
-psycopg2-binary==2.9.10
+psycopg[binary]>=3.2,<4
 gunicorn>=21.2.0
+dj-database-url==2.3.0
 drf-spectacular==0.29.0
 python-dotenv==1.0.0
 whitenoise==6.4.0
