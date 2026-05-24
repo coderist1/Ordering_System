@@ -4,7 +4,7 @@ import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 
 const FALLBACK_LAN_HOST = '192.168.254.121:8000'
-const FALLBACK_RELEASE_API_URL = 'https://ordering-system-15kz.onrender.com/api/v1'
+const FALLBACK_RELEASE_API_URL = 'https://ordering-system-backend-hsud.onrender.com/api/v1'
 
 const normalizeApiBaseUrl = (value: string) => {
   const trimmed = value.trim().replace(/\/$/, '')
