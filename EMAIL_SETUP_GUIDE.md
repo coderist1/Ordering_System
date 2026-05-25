@@ -39,7 +39,7 @@ Your Ordering System now has email activation via Brevo SMTP. Users receive acti
 
 ### Update `config/settings.py`
 
-Your settings are already set up to use environment variables. In your deployment (or `.env` file), configure:
+Your settings are already set up to use environment variables. In your Railway Variables tab (or local `.env` file), configure:
 
 ```env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
@@ -48,7 +48,7 @@ EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER=ac6f60001@smtp-brevo.com
 EMAIL_HOST_PASSWORD=your-brevo-password
-DEFAULT_FROM_EMAIL="Ordering System <mathewpolinar5@gmail.com>"
+DEFAULT_FROM_EMAIL=Ordering System <mathewpolinar5@gmail.com>
 ```
 
 ---
