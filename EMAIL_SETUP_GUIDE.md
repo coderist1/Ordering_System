@@ -1,7 +1,7 @@
 # Email Activation Setup Guide
 
 ## Overview
-Your Ordering System now has email activation via Gmail SMTP. Users receive activation links when they register, and must click them to activate their accounts.
+Your Ordering System now has email activation via Brevo SMTP. Users receive activation links when they register, and must click them to activate their accounts.
 
 ## Features Implemented
 
@@ -25,28 +25,13 @@ Your Ordering System now has email activation via Gmail SMTP. Users receive acti
 
 ---
 
-## Step 1: Enable Gmail App Password
+## Step 1: Get Brevo SMTP Credentials
 
-### Prerequisites
-- Gmail account with 2-factor authentication enabled
-- OR app-specific password if using corporate Gmail
-
-### Steps to Get App Password
-
-1. **Go to Google Account Settings**
-   - Visit: https://myaccount.google.com/
-
-2. **Enable 2-Factor Authentication** (if not already enabled)
-   - Security → 2-Step Verification
-   - Follow the prompts
-
-3. **Create App Password**
-   - Security → App passwords
-   - Select "Mail" and "Windows Computer"
-   - Google will generate a 16-character password
-   - Copy this password (you'll need it in Step 2)
-
-⚠️ **Important**: Use the 16-character password, NOT your regular Gmail password!
+1. Go to your Brevo Dashboard.
+2. Click on your profile menu (top right) -> **SMTP & API**.
+3. Under the **SMTP** tab, click **Generate a new SMTP key**.
+4. Copy the generated password.
+5. Verify your sender email address (`mathewpolinar5@gmail.com`) in the Senders list.
 
 ---
 
@@ -54,24 +39,16 @@ Your Ordering System now has email activation via Gmail SMTP. Users receive acti
 
 ### Update `config/settings.py`
 
-Find the EMAIL CONFIGURATION section and update:
+Your settings are already set up to use environment variables. In your deployment (or `.env` file), configure:
 
-```python
-# Replace 'your-email@gmail.com' with your actual Gmail address
-EMAIL_HOST_USER = 'your-email@gmail.com'
-
-# Replace 'your-app-password' with the 16-character app password from Step 1
-EMAIL_HOST_PASSWORD = 'xxxx xxxx xxxx xxxx'  # 16 chars with spaces
-
-# Should match your EMAIL_HOST_USER
-DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
-```
-
-### Example (DO NOT USE - for reference only):
-```python
-EMAIL_HOST_USER = 'john.smith@gmail.com'
-EMAIL_HOST_PASSWORD = 'abcd efgh ijkl mnop'  # 16-char app password
-DEFAULT_FROM_EMAIL = 'john.smith@gmail.com'
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=ac6f60001@smtp-brevo.com
+EMAIL_HOST_PASSWORD=your-brevo-password
+DEFAULT_FROM_EMAIL="Ordering System <mathewpolinar5@gmail.com>"
 ```
 
 ---

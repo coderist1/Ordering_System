@@ -333,19 +333,28 @@ sudo ufw status
 ### Email activation setup
 The activation email is sent through Django's email backend. By default the project uses the console backend for local development, so no real email is delivered until SMTP is configured.
 
-To send activation emails to Gmail, set these environment variables before starting Django:
+To send activation emails to Gmail, set these environment variables on the Render backend service:
 
 ```bash
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-gmail-address@gmail.com
-EMAIL_HOST_PASSWORD=your-google-app-password
-DEFAULT_FROM_EMAIL=your-gmail-address@gmail.com
+EMAIL_HOST_USER=mathewpolinar5@gmail.com
+EMAIL_HOST_PASSWORD=your-gmail-app-password
+DEFAULT_FROM_EMAIL=mathewpolinar5@gmail.com
+FRONTEND_URL=https://ordering-system-6rn1.vercel.app
 ```
 
 Use a Google App Password, not your normal Gmail password.
+
+### Exact deployment order
+
+1. Set the Render backend environment variables above.
+2. Redeploy the Render backend service.
+3. Set `VITE_API_BASE_URL=/api/v1` in the Vercel frontend project.
+4. Redeploy the Vercel frontend.
+5. Test activation from the live Vercel site.
 
 ---
 

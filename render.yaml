@@ -26,7 +26,7 @@ services:
           name: ordering-system-db
           property: connectionString
       - key: FRONTEND_URL
-        value: https://ordering-system-1-up16.onrender.com
+        value: https://ordering-system-6rn1.vercel.app
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1,.onrender.com
 
