@@ -26,17 +26,14 @@ services:
           name: ordering-system-db
           property: connectionString
       - key: FRONTEND_URL
-        value: https://ordering-system-6rn1.vercel.app   # ← Update this to your actual Vercel frontend URL after redeploy
+        value: https://ordering-system-1-up16.onrender.com
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1,.onrender.com
 
-      # Email configuration - Using Resend (recommended)
-      # IMPORTANT: Never commit your real API key here.
-      # Set RESEND_API_KEY only in the Render Dashboard under Environment.
-      - key: RESEND_API_KEY
-        value: ""   # ← Set the real key in Render Dashboard
-
-      # (Optional fallback - Gmail SMTP - can be removed later)
+      # Email configuration for Gmail SMTP
+      # Set these in Render Dashboard with your real Gmail app password.
+      # - key: EMAIL_BACKEND
+      #   value: django.core.mail.backends.smtp.EmailBackend
       # - key: EMAIL_HOST
       #   value: smtp.gmail.com
       # - key: EMAIL_PORT
@@ -44,9 +41,11 @@ services:
       # - key: EMAIL_USE_TLS
       #   value: "true"
       # - key: EMAIL_HOST_USER
-      #   value: your@gmail.com
+      #   value: your-email@gmail.com
+      # - key: EMAIL_HOST_PASSWORD
+      #   value: your-gmail-app-password
       # - key: DEFAULT_FROM_EMAIL
-      #   value: your@gmail.com
+      #   value: your-email@gmail.com
 
   # Frontend (React - Static Site)
   - type: web
