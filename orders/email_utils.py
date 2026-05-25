@@ -1,41 +1,36 @@
 """
 Email utilities for sending activation and notification emails.
-Now using Resend instead of Gmail SMTP.
+Uses Django's configured email backend so SMTP settings from the environment
+control delivery.
 """
 
-import resend
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
+from django.core.mail import EmailMultiAlternatives
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 
 
-def _send_email_via_resend(subject: str, html_content: str, to_email: str):
-    """Helper to send email using Resend."""
-    if not settings.RESEND_API_KEY:
-        print("⚠ RESEND_API_KEY not set. Skipping email send.")
-        return False
-
-    resend.api_key = settings.RESEND_API_KEY
-
-    params = {
-        "from": settings.DEFAULT_FROM_EMAIL or "Ordering System <onboarding@resend.dev>",
-        "to": [to_email],
-        "subject": subject,
-        "html": html_content,
-    }
+def _send_email_via_smtp(subject: str, html_content: str, to_email: str):
+    """Helper to send email using Django's configured email backend."""
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body='Please view this email in an HTML-capable client.',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[to_email],
+    )
+    message.attach_alternative(html_content, 'text/html')
 
     try:
-        resend.Emails.send(params)
+        message.send(fail_silently=False)
         return True
     except Exception as e:
-        print(f"✗ Resend error: {str(e)}")
+        print(f"✗ SMTP error: {str(e)}")
         return False
 
 
 def send_activation_email(user):
     """
-    Send account activation email using Resend.
+    Send account activation email using Django's configured email backend.
     """
     try:
         token = default_token_generator.make_token(user)
@@ -54,7 +49,7 @@ def send_activation_email(user):
         html_message = render_to_string('emails/activation_email.html', context)
 
         subject = 'Activate Your Ordering System Account'
-        success = _send_email_via_resend(subject, html_message, user.email)
+        success = _send_email_via_smtp(subject, html_message, user.email)
 
         if success:
             print(f"✓ Activation email sent to {user.email}")
@@ -71,7 +66,7 @@ def send_activation_email(user):
 
 def send_password_reset_email(user):
     """
-    Send password reset email using Resend.
+    Send password reset email using Django's configured email backend.
     """
     try:
         token = default_token_generator.make_token(user)
@@ -85,7 +80,7 @@ def send_password_reset_email(user):
         html_message = render_to_string('emails/password_reset_email.html', context)
 
         subject = 'Reset Your Ordering System Password'
-        success = _send_email_via_resend(subject, html_message, user.email)
+        success = _send_email_via_smtp(subject, html_message, user.email)
 
         if success:
             print(f"✓ Password reset email sent to {user.email}")
@@ -102,7 +97,7 @@ def send_password_reset_email(user):
 
 def send_order_notification_email(user, order):
     """
-    Send order notification email using Resend.
+    Send order notification email using Django's configured email backend.
     """
     try:
         context = {
@@ -114,7 +109,7 @@ def send_order_notification_email(user, order):
         html_message = render_to_string('emails/order_notification.html', context)
 
         subject = f'Order {order.order_number} Confirmation'
-        success = _send_email_via_resend(subject, html_message, user.email)
+        success = _send_email_via_smtp(subject, html_message, user.email)
 
         if success:
             print(f"✓ Order notification sent to {user.email}")
