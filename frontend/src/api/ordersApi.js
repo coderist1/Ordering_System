@@ -6,11 +6,7 @@ const normalizeBaseUrl = (value, fallback) => {
 }
 
 const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL, '/api/v1')
-const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-
-// Use the configured base URL only in local development.
-// Production deployments should stay same-origin and use the Vercel rewrite at /api/v1.
-const API_BASE_URL = isLocalDev ? configuredBaseUrl : '/api/v1'
+const API_BASE_URL = configuredBaseUrl
 const REFRESH_BASE_URL = API_BASE_URL.endsWith('/api/v1')
   ? API_BASE_URL.replace(/\/api\/v1$/, '') || '/'
   : API_BASE_URL
