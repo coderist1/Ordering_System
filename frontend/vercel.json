@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/v1/(.*)",
-      "destination": "https://ordering-system-15kz.onrender.com/api/v1/$1"
+      "destination": "https://ordering-system-backend.onrender.com/api/v1/$1"
     },
     {
       "source": "/(.*)",
