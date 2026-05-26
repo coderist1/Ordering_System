@@ -13,6 +13,10 @@ from email.utils import parseaddr
 import requests
 
 
+def _log(message: str):
+    print(message, flush=True)
+
+
 def _send_email_via_smtp(subject: str, html_content: str, to_email: str):
     """Helper to send email using Django's configured email backend."""
     message = EmailMultiAlternatives(
@@ -27,7 +31,7 @@ def _send_email_via_smtp(subject: str, html_content: str, to_email: str):
         message.send(fail_silently=False)
         return True
     except Exception as e:
-        print(f"✗ SMTP error: {str(e)}")
+        _log(f"[email] SMTP error: {e}")
         return False
 
 
@@ -64,18 +68,21 @@ def _send_email_via_brevo_api(subject: str, html_content: str, to_email: str):
         )
         if response.ok:
             return True
-        print(f"✗ Brevo API error: {response.status_code} {response.text}")
+        _log(f"[email] Brevo API error: {response.status_code} {response.text}")
         return False
     except Exception as e:
-        print(f"✗ Brevo API request failed: {str(e)}")
+        _log(f"[email] Brevo API request failed: {e}")
         return False
 
 
 def _send_email(subject: str, html_content: str, to_email: str):
-    """Try SMTP first; fall back to Brevo HTTP API if configured."""
+    """Prefer Brevo API on cloud hosts; fall back to SMTP."""
+    api_key = getattr(settings, 'BREVO_API_KEY', '')
+    if api_key and _send_email_via_brevo_api(subject, html_content, to_email):
+        return True
     if _send_email_via_smtp(subject, html_content, to_email):
         return True
-    return _send_email_via_brevo_api(subject, html_content, to_email)
+    return False
 
 
 def send_activation_email(user):
@@ -86,7 +93,7 @@ def send_activation_email(user):
         token = default_token_generator.make_token(user)
 
         activation_url = f"{settings.FRONTEND_URL}/activate/{user.pk}/{token}/"
-        backend_activation_url = f"{getattr(settings, 'BACKEND_URL', 'http://localhost:8000')}/api/auth/activate/{user.pk}/{token}/"
+        backend_activation_url = f"{getattr(settings, 'BACKEND_URL', 'http://localhost:8000')}/api/v1/auth/activate/{user.pk}/{token}/"
 
         context = {
             'user': user,
@@ -102,13 +109,14 @@ def send_activation_email(user):
         success = _send_email(subject, html_message, user.email)
 
         if success:
-            print(f"✓ Activation email sent to {user.email}")
+            _log(f"[email] Activation email sent to {user.email}")
             return True, activation_url
         else:
+            _log(f"[email] Activation email failed for {user.email}")
             return False, activation_url
 
     except Exception as e:
-        print(f"✗ Failed to send activation email: {str(e)}")
+        _log(f"[email] Failed to send activation email: {e}")
         token = default_token_generator.make_token(user)
         activation_url = f"{settings.FRONTEND_URL}/activate/{user.pk}/{token}/"
         return False, activation_url
@@ -133,13 +141,13 @@ def send_password_reset_email(user):
         success = _send_email(subject, html_message, user.email)
 
         if success:
-            print(f"✓ Password reset email sent to {user.email}")
+            _log(f"[email] Password reset email sent to {user.email}")
             return True, reset_url
         else:
             return False, reset_url
 
     except Exception as e:
-        print(f"✗ Failed to send password reset email: {str(e)}")
+        _log(f"[email] Failed to send password reset email: {e}")
         token = default_token_generator.make_token(user)
         reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}"
         return False, reset_url
@@ -162,10 +170,10 @@ def send_order_notification_email(user, order):
         success = _send_email(subject, html_message, user.email)
 
         if success:
-            print(f"✓ Order notification sent to {user.email}")
+            _log(f"[email] Order notification sent to {user.email}")
             return True
         return False
 
     except Exception as e:
-        print(f"✗ Failed to send order notification: {str(e)}")
+        _log(f"[email] Failed to send order notification: {e}")
         return False

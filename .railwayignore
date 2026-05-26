@@ -1,0 +1,13 @@
+package.json
+package-lock.json
+node_modules/
+mobile/
+.expo/
+staticfiles/
+db.sqlite3
+*.log
+.venv/
+__pycache__/
+*.pyc
+.git/
+.github/

@@ -29,7 +29,11 @@ def env_list(name: str, default: str = ''):
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-order-system-key-2024')  # Change this in production!
 DEBUG = env_bool('DEBUG', True)
-ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com')
+ALLOWED_HOSTS = env_list(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1,.onrender.com,.railway.app,'
+    'ordering-system-backend-production.up.railway.app',
+)
 
 if '*' not in ALLOWED_HOSTS:
     extra_hosts = []
@@ -37,6 +41,18 @@ if '*' not in ALLOWED_HOSTS:
     frontend_host = urlparse(os.getenv('FRONTEND_URL', '')).hostname
     if frontend_host:
         extra_hosts.append(frontend_host)
+
+    backend_host = urlparse(os.getenv('BACKEND_URL', '')).hostname
+    if backend_host:
+        extra_hosts.append(backend_host)
+
+    railway_domain = os.getenv('RAILWAY_PUBLIC_DOMAIN', '').strip()
+    if railway_domain:
+        extra_hosts.append(railway_domain)
+
+    railway_static_host = urlparse(os.getenv('RAILWAY_STATIC_URL', '')).hostname
+    if railway_static_host:
+        extra_hosts.append(railway_static_host)
 
     render_url_host = urlparse(os.getenv('RENDER_EXTERNAL_URL', '')).hostname
     if render_url_host:
@@ -49,6 +65,10 @@ if '*' not in ALLOWED_HOSTS:
     for host in extra_hosts:
         if host and host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(host)
+
+# On Railway, never block requests because of a stale ALLOWED_HOSTS env var.
+if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_PUBLIC_DOMAIN'):
+    ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -76,7 +96,7 @@ except Exception:
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-1-up16-production.up.railway.app')
 # Default to local filesystem storage; if cloudinary is installed we'll override below
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
@@ -156,14 +176,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app')
+CORS_ALLOWED_ORIGINS = env_list(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:5173,http://127.0.0.1:5173,'
+    'https://ordering-system-1-up16-production.up.railway.app,'
+    'https://ordering-system-6rn1.vercel.app',
+)
 
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app',
+    'http://localhost:5173,http://127.0.0.1:5173,'
+    'https://ordering-system-1-up16-production.up.railway.app,'
+    'https://ordering-system-6rn1.vercel.app',
 )
 
-for origin in (os.getenv('FRONTEND_URL', ''), os.getenv('RENDER_EXTERNAL_URL', '')):
+for origin in (
+    os.getenv('FRONTEND_URL', ''),
+    os.getenv('BACKEND_URL', ''),
+    os.getenv('RENDER_EXTERNAL_URL', ''),
+):
     origin = origin.rstrip('/')
     if origin and origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(origin)
@@ -189,6 +220,8 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ] if not DEBUG else [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
@@ -223,8 +256,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Ordering System <mathewpol
 # ─────────────────────────────────────────────
 #  FRONTEND URL (for activation links)
 # ─────────────────────────────────────────────
-
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')  # Live Vercel server
+# FRONTEND_URL is defined near the top of this file.
 
 # ─────────────────────────────────────────────
 #  ACTIVATION TOKEN TIMEOUT (seconds)
@@ -233,7 +265,10 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.ap
 ACTIVATION_TOKEN_EXPIRE_HOURS = 24
 
 # Backend URL used for activation fallback links (change if your API runs on a different host/port)
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+BACKEND_URL = os.getenv(
+    'BACKEND_URL',
+    'https://ordering-system-backend-production.up.railway.app',
+)
 
 
 if not DEBUG:

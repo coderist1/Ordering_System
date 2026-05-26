@@ -344,8 +344,8 @@ EMAIL_HOST_USER=your-login@smtp-brevo.com
 EMAIL_HOST_PASSWORD=your-brevo-smtp-key
 DEFAULT_FROM_EMAIL=Ordering System <your-verified-sender@gmail.com>
 BREVO_API_KEY=your-brevo-api-key
-FRONTEND_URL=https://ordering-system-6rn1.vercel.app
-BACKEND_URL=https://your-railway-backend.up.railway.app
+FRONTEND_URL=https://ordering-system-1-up16-production.up.railway.app
+BACKEND_URL=https://ordering-system-backend-production.up.railway.app
 ```
 
 In Brevo: **SMTP & API** → generate an SMTP key, and verify your sender under **Senders**.  
@@ -354,11 +354,40 @@ See `EMAIL_SETUP_GUIDE.md` for the full walkthrough.
 
 ### Exact deployment order
 
-1. Set the Railway backend environment variables above.
-2. Railway will automatically redeploy the backend service.
-3. Set `VITE_API_BASE_URL=/api/v1` in the Vercel frontend project.
-4. Redeploy the Vercel frontend.
-5. Test activation from the live Vercel site.
+1. Deploy backend service from repo root (`railway.toml` runs migrate + gunicorn).
+2. Add PostgreSQL in Railway and link `DATABASE_URL` to the backend service.
+3. Set backend environment variables below on **ordering-system-backend**.
+4. Deploy frontend from `frontend/` (`frontend/railway.toml` + `.env.production`).
+5. Open `https://ordering-system-1-up16-production.up.railway.app` and test register → activation → login.
+
+### Railway backend environment variables
+
+```bash
+DEBUG=False
+SECRET_KEY=your-long-random-secret
+ALLOWED_HOSTS=localhost,127.0.0.1,.railway.app,ordering-system-backend-production.up.railway.app
+FRONTEND_URL=https://ordering-system-1-up16-production.up.railway.app
+BACKEND_URL=https://ordering-system-backend-production.up.railway.app
+CORS_ALLOWED_ORIGINS=https://ordering-system-1-up16-production.up.railway.app
+CSRF_TRUSTED_ORIGINS=https://ordering-system-1-up16-production.up.railway.app
+
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-login@smtp-brevo.com
+EMAIL_HOST_PASSWORD=your-brevo-smtp-key
+DEFAULT_FROM_EMAIL=Ordering System <your-verified-sender@gmail.com>
+BREVO_API_KEY=your-brevo-api-key
+```
+
+### Railway frontend environment variables
+
+The frontend build reads `frontend/.env.production`:
+
+```bash
+VITE_API_BASE_URL=https://ordering-system-backend-production.up.railway.app/api/v1
+```
 
 ---
 
