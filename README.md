@@ -333,20 +333,24 @@ sudo ufw status
 ### Email activation setup
 The activation email is sent through Django's email backend. By default the project uses the console backend for local development, so no real email is delivered until SMTP is configured.
 
-To send activation emails via Brevo (Sendinblue), set these environment variables on your Railway backend service:
+To send activation emails via Brevo, set these environment variables on your Railway backend service:
 
 ```bash
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
+EMAIL_HOST=smtp-relay.brevo.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=mathewpolinar5@gmail.com
-EMAIL_HOST_PASSWORD=your-gmail-app-password
-DEFAULT_FROM_EMAIL=mathewpolinar5@gmail.com
+EMAIL_HOST_USER=your-login@smtp-brevo.com
+EMAIL_HOST_PASSWORD=your-brevo-smtp-key
+DEFAULT_FROM_EMAIL=Ordering System <your-verified-sender@gmail.com>
+BREVO_API_KEY=your-brevo-api-key
 FRONTEND_URL=https://ordering-system-6rn1.vercel.app
+BACKEND_URL=https://your-railway-backend.up.railway.app
 ```
 
-Use a Google App Password, not your normal Gmail password.
+In Brevo: **SMTP & API** → generate an SMTP key, and verify your sender under **Senders**.  
+`DEFAULT_FROM_EMAIL` must match a verified sender in Brevo.  
+See `EMAIL_SETUP_GUIDE.md` for the full walkthrough.
 
 ### Exact deployment order
 

@@ -30,22 +30,25 @@ services:
       - key: ALLOWED_HOSTS
         value: localhost,127.0.0.1,.onrender.com
 
-      # Email configuration for Gmail SMTP
-      # Set these in Render Dashboard with your real Gmail app password.
+      # Email (Brevo) — set secrets in Render Dashboard, not in this file.
       # - key: EMAIL_BACKEND
       #   value: django.core.mail.backends.smtp.EmailBackend
       # - key: EMAIL_HOST
-      #   value: smtp.gmail.com
+      #   value: smtp-relay.brevo.com
       # - key: EMAIL_PORT
       #   value: "587"
       # - key: EMAIL_USE_TLS
       #   value: "true"
       # - key: EMAIL_HOST_USER
-      #   value: your-email@gmail.com
+      #   sync: false
       # - key: EMAIL_HOST_PASSWORD
-      #   value: your-gmail-app-password
+      #   sync: false
       # - key: DEFAULT_FROM_EMAIL
-      #   value: your-email@gmail.com
+      #   value: Ordering System <your-verified-sender@gmail.com>
+      # - key: BREVO_API_KEY
+      #   sync: false
+      # - key: BACKEND_URL
+      #   value: https://ordering-system-backend.onrender.com
 
   # Frontend (React - Static Site)
   - type: web

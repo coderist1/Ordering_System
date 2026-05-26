@@ -153,20 +153,24 @@ curl -X POST http://localhost:8000/api/v1/auth/reset-password/1/abc123token... \
 
 ## Troubleshooting
 
-### "SMTPAuthenticationError: 535 5.7.8 Username and password not accepted"
-- ✓ Check app password is 16 characters (with spaces in the middle)
-- ✓ Verify you enabled 2-Factor Authentication on your Gmail account
-- ✓ Confirm EMAIL_HOST_USER matches your Gmail address
+### "SMTPAuthenticationError" or "535 Authentication failed"
+- ✓ `EMAIL_HOST_USER` must be your Brevo SMTP login (e.g. `xxxx@smtp-brevo.com`), not your personal email
+- ✓ `EMAIL_HOST_PASSWORD` must be the Brevo SMTP key, not your Brevo account password
+- ✓ Regenerate the SMTP key in Brevo if unsure
+
+### "Sender not valid" or email rejected by Brevo
+- ✓ Verify the sender address in Brevo under **Senders**
+- ✓ `DEFAULT_FROM_EMAIL` must use that verified address
 
 ### "Connection refused" or "timeout"
-- ✓ Check internet connection
-- ✓ Verify `EMAIL_HOST = 'smtp.gmail.com'` and `EMAIL_PORT = 587`
-- ✓ Ensure your network allows outbound SMTP
+- ✓ Use `EMAIL_HOST=smtp-relay.brevo.com` with port `587` (TLS) or `2525`
+- ✓ Set `BREVO_API_KEY` as a fallback — the app tries the HTTP API if SMTP fails
 
 ### Emails not sending
-- ✓ Check Django console output for error messages
-- ✓ Verify email template files exist in `orders/templates/emails/`
-- ✓ Try using console backend first to debug
+- ✓ Confirm `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` (default is console, which only prints to terminal)
+- ✓ Check Railway/backend logs for `✓ Activation email sent` or `✗ SMTP error`
+- ✓ Verify templates exist in `orders/templates/emails/`
+- ✓ For local dev, temporarily use `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`
 
 ### Activation link doesn't work
 - ✓ Verify `FRONTEND_URL` is set correctly
@@ -274,14 +278,13 @@ All templates are in `orders/templates/emails/`
 
 ## Production Checklist
 
-- [ ] Create app password on Gmail
-- [ ] Update EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
-- [ ] Update FRONTEND_URL to production domain
-- [ ] Test email sending with console backend first
-- [ ] Run migrations
-- [ ] Test full registration + activation flow
-- [ ] Set DEBUG = False in production
-- [ ] Use environment variables for sensitive data
+- [ ] Generate Brevo SMTP key and verify sender email
+- [ ] Set `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, and `DEFAULT_FROM_EMAIL` on Railway
+- [ ] Set `BREVO_API_KEY` as optional SMTP fallback
+- [ ] Set `FRONTEND_URL` to your Vercel domain
+- [ ] Set `BACKEND_URL` to your Railway domain
+- [ ] Test registration + activation from the live site
+- [ ] Set `DEBUG=False` in production
 
 ---
 
@@ -289,5 +292,5 @@ All templates are in `orders/templates/emails/`
 
 For issues or questions:
 1. Check Troubleshooting section above
-2. Review Django email documentation
-3. Check Gmail app passwords help: https://support.google.com/accounts/answer/185833
+2. Review [Brevo SMTP documentation](https://developers.brevo.com/docs/send-a-transactional-email)
+3. Check Django email documentation
