@@ -1,10 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import Layout from '@/components/Layout'
 import MobileLayout from '@/components/MobileLayout'
 import { useState, useEffect } from 'react'
 
-function ResponsiveLayout({ children }) {
+function ResponsiveLayout() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -14,8 +14,8 @@ function ResponsiveLayout({ children }) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  if (isMobile) return <MobileLayout>{children}</MobileLayout>
-  return <Layout>{children}</Layout>
+  if (isMobile) return <MobileLayout />
+  return <Layout />
 }
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
@@ -39,9 +39,10 @@ import ApplyForOwner from '@/pages/ApplyForOwner'
 function PrivateRoute({ children, roles }) {
   const { user, authChecked } = useAuth()
   const hasToken = Boolean(localStorage.getItem('access_token'))
+  const role = user?.role === 'user' ? 'customer' : user?.role
   if (!authChecked) return null // Will show loading from App
   if (!user && !hasToken) return <Navigate to="/login" replace />
-  if (user && roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
+  if (user && roles && !roles.includes(role)) return <Navigate to="/dashboard" replace />
   return children
 }
 

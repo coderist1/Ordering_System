@@ -461,13 +461,18 @@ class OrderCreateSerializer(serializers.Serializer):
         request = self.context.get('request')
 
         # Get or create Customer — NO user in defaults to avoid UNIQUE constraint
-        customer, _ = Customer.objects.get_or_create(
+        customer, created = Customer.objects.get_or_create(
             email=validated_data['customer_email'],
             defaults={
                 'name':  validated_data['customer_name'],
                 'phone': validated_data.get('customer_phone', ''),
             }
         )
+        if request and request.user.is_authenticated and not customer.user_id:
+            customer.user = request.user
+            if not customer.name:
+                customer.name = validated_data['customer_name']
+            customer.save(update_fields=['user', 'name'])
 
         order = Order.objects.create(
             customer=customer,

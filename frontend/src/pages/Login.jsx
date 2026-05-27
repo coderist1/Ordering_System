@@ -17,7 +17,7 @@ export default function Login() {
     setError('')
     try {
       await loginUser(form.email, form.password)
-      navigate('/profile')
+      navigate('/dashboard')
     } catch (err) {
       setError(getApiErrorMessage(err, 'Login failed.'))
     } finally {

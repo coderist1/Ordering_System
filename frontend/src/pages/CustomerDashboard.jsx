@@ -490,24 +490,27 @@ export default function CustomerDashboard() {
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [toast,        setToast]        = useState('')
 
-  // ✅ ADD HERE
-useEffect(() => {
-  const saved = localStorage.getItem("cart")
-  if (saved) {
+  // Load cart once on mount (avoid overwriting saved cart with [] on first render)
+  useEffect(() => {
+    const saved = localStorage.getItem('cart')
+    if (!saved) return
     try {
       const parsed = JSON.parse(saved)
       if (Array.isArray(parsed)) {
-        setCart(parsed.filter(item => item && item.id && item.price))
+        setCart(parsed.filter(item => item && item.id != null && item.price != null))
       }
     } catch (e) {
-      console.error("Failed to parse cart from local storage", e)
+      console.error('Failed to parse cart from local storage', e)
     }
-  }
-}, [])
+  }, [])
 
-useEffect(() => {
-  localStorage.setItem("cart", JSON.stringify(cart))
-}, [cart])
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('cart', JSON.stringify(cart))
+    } else {
+      localStorage.removeItem('cart')
+    }
+  }, [cart])
 
   const [category, setCategory] = useState('All')
   const [search,   setSearch]   = useState('')
@@ -517,7 +520,10 @@ useEffect(() => {
   const notify = (m) => { setToast(m); setTimeout(() => setToast(''), 4000) }
 
   const load = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
     setLoading(true); setError(null)
     try {
       const [pRes, oRes] = await Promise.all([fetchProducts(), fetchOrders()])
@@ -548,16 +554,21 @@ useEffect(() => {
   )
 
   const addToCart = (product) => {
+    const normalized = { ...product, id: Number(product.id), qty: 1 }
     setCart(prev => {
-      const existing = prev.find(i => i.id === product.id)
-      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { ...product, qty: 1 }]
+      const existing = prev.find(i => Number(i.id) === normalized.id)
+      if (existing) {
+        return prev.map(i => Number(i.id) === normalized.id ? { ...i, qty: i.qty + 1 } : i)
+      }
+      return [...prev, normalized]
     })
+    notify(`Added ${product.name} to cart`)
   }
 
   const updateQty = (id, qty) => {
-    if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id))
-    else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i))
+    const numericId = Number(id)
+    if (qty <= 0) setCart(prev => prev.filter(i => Number(i.id) !== numericId))
+    else setCart(prev => prev.map(i => Number(i.id) === numericId ? { ...i, qty } : i))
   }
 
   const placeOrder = async () => {
@@ -806,7 +817,7 @@ useEffect(() => {
                     ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                         {filteredProducts.map((product, i) => {
-                          const inCart = cart.find(c => c.id === product.id)
+                          const inCart = cart.find(c => Number(c.id) === Number(product.id))
                           return (
                             <ProductCard
                               key={product.id}

@@ -1,9 +1,9 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import './MobileLayout.css';
 
-export default function MobileLayout({ children }) {
+export default function MobileLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -19,9 +19,11 @@ export default function MobileLayout({ children }) {
       { name: 'Orders', path: '/orders', icon: '📦' },
     ];
 
-    if (user?.role === 'admin') {
+    const role = user?.role === 'user' ? 'customer' : user?.role
+
+    if (role === 'admin') {
       links.push({ name: 'Users', path: '/users', icon: '👥' });
-    } else if (user?.role === 'owner') {
+    } else if (role === 'owner') {
       links.push({ name: 'Products', path: '/products', icon: '🏷️' });
     }
 
@@ -49,7 +51,7 @@ export default function MobileLayout({ children }) {
 
       {/* Scrollable Main Content */}
       <main className="mobile-main-content">
-        {children}
+        <Outlet />
       </main>
 
       {/* Fixed Bottom Navigation */}
