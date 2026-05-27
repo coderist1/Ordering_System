@@ -3,6 +3,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar'
 import { NavigationContainer } from '@react-navigation/native'
 import { AuthProvider } from './src/context/AuthContext'
+import { CartProvider } from './src/context/CartContext'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import AppNavigator from './src/navigation/AppNavigator'
@@ -18,10 +19,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
-          <StatusBar style="dark" />
+          <CartProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+            <StatusBar style="dark" />
+          </CartProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -129,9 +129,7 @@ export default function RegisterScreen() {
 
       await register(form)
 
-      Alert.alert('Success', 'Registration successful! Please login.', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') }
-      ])
+      navigation.navigate('ActivationPending', { email })
     } catch (e: any) {
       const msg = e?.response?.data
         ? Object.values(e.response.data).flat().join(', ')

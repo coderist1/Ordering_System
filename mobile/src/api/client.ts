@@ -4,7 +4,7 @@ import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 
 const FALLBACK_LAN_HOST = '192.168.254.121:8000'
-const FALLBACK_RELEASE_API_URL = 'https://ordering-system-backend-hsud.onrender.com/api/v1'
+const FALLBACK_RELEASE_API_URL = 'https://ordering-system-backend-production.up.railway.app/api/v1'
 
 const normalizeApiBaseUrl = (value: string) => {
   const trimmed = value.trim().replace(/\/$/, '')
@@ -195,7 +195,8 @@ export const fetchMe = () => api.get('/auth/me/')
 // Normalize user data - extract role from profile
 export const normalizeUser = (payload: any) => {
   const raw = payload?.user ? payload.user : payload
-  const role = raw?.profile?.role || raw?.role || 'user'
+  const roleRaw = raw?.profile?.role || raw?.role || 'customer'
+  const role = roleRaw === 'user' ? 'customer' : roleRaw
   return { ...raw, role, profile: raw?.profile || null }
 }
 
@@ -206,16 +207,15 @@ export const updateProfile = (data: any) => {
 export const fetchProducts = (params = {}) => api.get('/products/', { params })
 export const fetchProduct = (id: number) => api.get(`/products/${id}/`)
 export const createProduct = (data: any) => {
-  // If FormData (contains image), send as multipart
   if (typeof FormData !== 'undefined' && data instanceof FormData) {
-    return api.post('/products/', data, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.post('/products/', data)
   }
   return api.post('/products/', data)
 }
 
 export const updateProduct = (id: number, data: any) => {
   if (typeof FormData !== 'undefined' && data instanceof FormData) {
-    return api.patch(`/products/${id}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+    return api.patch(`/products/${id}/`, data)
   }
   return api.patch(`/products/${id}/`, data)
 }
@@ -242,7 +242,8 @@ export const fetchOwnerApplications = () => api.get('/owner-applications/')
 export const fetchOwnerApplication = (id: number) => api.get(`/owner-applications/${id}/`)
 export const reviewOwnerApplication = (id: number, data: any) => api.post(`/owner-applications/${id}/review/`, data)
 
-export const sendChatMessage = (message: string) => api.post('/chatbot/', { message })
+export const sendChatMessage = (message: string) => api.post('/chat/', { message })
+export const sendPublicChatMessage = (message: string) => api.post('/chat/public/', { message })
 export const fetchChatbotInfo = () => api.get('/chatbot/info/')
 
 // Upload profile image separately

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,61 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { fetchProducts, createOrder, fetchOrders, cancelOrder } from '../api/client';
-import { Product, Order } from '../types';
+import { useCart } from '../context/CartContext';
+import { createOrder } from '../api/client';
 import { colors, radii, spacing, typography, shadows } from '../theme/design';
-
-type CartLine = Product & { quantity: number };
 
 export default function CartScreen() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const navigation = useNavigation<any>();
+  const { cart, cartCount, cartTotal, updateQty, clearCart } = useCart();
   const [placing, setPlacing] = useState(false);
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [pRes, oRes] = await Promise.all([fetchProducts(), fetchOrders()]);
-      setProducts(pRes.data.products || []);
-      setOrders(oRes.data.orders || oRes.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
-  const cartTotal = cart.reduce((sum, l) => sum + Number(l.price) * l.quantity, 0);
-
-  const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const exists = prev.find((i) => i.id === product.id);
-      if (exists) {
-        return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
-      }
-      return [...prev, { ...(product as any), quantity: 1 }];
-    });
-    Alert.alert('Added', `${product.name} added to cart`);
-  };
-
-  const updateQty = (id: number, qty: number) => {
-    setCart((prev) => {
-      if (qty <= 0) return prev.filter((i) => i.id !== id);
-      return prev.map((i) => (i.id === id ? { ...i, quantity: qty } : i));
-    });
-  };
 
   const placeOrder = async () => {
     if (!cart.length) {
@@ -80,9 +39,11 @@ export default function CartScreen() {
           unit_price: i.price,
         })),
       });
-      setCart([]);
-      Alert.alert('Success', 'Order placed successfully!');
-      await loadData();
+      clearCart();
+      Alert.alert('Success', 'Order placed successfully!', [
+        { text: 'View Orders', onPress: () => navigation.navigate('Orders') },
+        { text: 'OK' },
+      ]);
     } catch (err: any) {
       const msg = err?.response?.data
         ? Object.values(err.response.data).flat().join(', ')
@@ -93,190 +54,110 @@ export default function CartScreen() {
     }
   };
 
-  const handleCancelOrder = async (orderId: number) => {
-    Alert.alert('Cancel Order', 'Are you sure?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes',
-        style: 'destructive',
-        onPress: async () => {
-          setCancellingId(orderId);
-          try {
-            await cancelOrder(orderId);
-            Alert.alert('Cancelled', 'Order cancelled successfully.');
-            await loadData();
-          } catch {
-            Alert.alert('Error', 'Failed to cancel order');
-          } finally {
-            setCancellingId(null);
-          }
-        }
-      }
-    ]);
-  };
-
-  const recentOrders = useMemo(() => orders.slice(0, 6), [orders]);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  if (loading) {
+  const renderCartItem = ({ item }: { item: (typeof cart)[number] }) => {
+    const lineTotal = Number(item.price) * item.quantity;
     return (
-      <SafeAreaView style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </SafeAreaView>
+      <View style={styles.cartItem}>
+        <View style={styles.cartItemTop}>
+          <View style={styles.cartItemImageWrap}>
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={styles.cartItemImage} />
+            ) : (
+              <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
+            )}
+          </View>
+          <View style={styles.cartItemInfo}>
+            <Text style={styles.cartItemName}>{item.name}</Text>
+            <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
+            <Text style={styles.cartItemTotal}>₱{lineTotal.toFixed(2)}</Text>
+          </View>
+        </View>
+        <View style={styles.cartItemControls}>
+          <TouchableOpacity
+            onPress={() => updateQty(item.id, item.quantity - 1)}
+            style={styles.qtyBtn}
+          >
+            <Text style={styles.qtyBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.qtyText}>{item.quantity}</Text>
+          <TouchableOpacity
+            onPress={() => updateQty(item.id, item.quantity + 1)}
+            style={styles.qtyBtn}
+          >
+            <Text style={styles.qtyBtnText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => updateQty(item.id, 0)} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>Remove</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
-  }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <FlatList
-        data={[]}
-        renderItem={null}
-        ListHeaderComponent={
-          <>
-            <View style={styles.header}>
-              <Text style={styles.storeName}>MY STORE</Text>
-              <Text style={styles.greeting}>{getGreeting()}, {user?.first_name || 'Customer'}</Text>
-              <Text style={styles.headerSubtitle}>Manage your cart and track orders</Text>
+      <View style={styles.header}>
+        <Text style={styles.storeName}>MY STORE</Text>
+        <Text style={styles.title}>Your Cart</Text>
+        <Text style={styles.headerSubtitle}>
+          {cartCount} item{cartCount === 1 ? '' : 's'} · orders sync with web when signed in
+        </Text>
+      </View>
+
+      {cart.length === 0 ? (
+        <View style={styles.emptyCart}>
+          <Text style={styles.emptyCartText}>Your cart is empty</Text>
+          <Text style={styles.emptyCartHint}>Browse the shop and add items to get started</Text>
+          <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Shop')}>
+            <Text style={styles.shopBtnText}>Browse Products</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <FlatList
+            data={cart}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderCartItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+          <View style={styles.footer}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Items</Text>
+              <Text style={styles.summaryValue}>{cartCount}</Text>
             </View>
-
-            <View style={styles.cartSummary}>
-              <Text style={styles.cartSummaryTitle}>Cart Summary</Text>
-              <View style={styles.cartSummaryRow}>
-                <Text style={styles.cartSummaryLabel}>Items:</Text>
-                <Text style={styles.cartSummaryValue}>{cartCount}</Text>
-              </View>
-              <View style={styles.cartSummaryRow}>
-                <Text style={styles.cartSummaryLabel}>Total:</Text>
-                <Text style={styles.cartSummaryPrice}>₱{cartTotal.toFixed(2)}</Text>
-              </View>
-              <TouchableOpacity style={[styles.placeBtn, placing && styles.buttonDisabled]} onPress={placeOrder} disabled={placing}>
-                <Text style={styles.placeBtnText}>{placing ? 'Placing...' : 'Place Order'}</Text>
-              </TouchableOpacity>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Amount</Text>
+              <Text style={styles.summaryPrice}>₱{cartTotal.toFixed(2)}</Text>
             </View>
-
-            <Text style={styles.sectionTitle}>Your Cart</Text>
-          </>
-        }
-        ListFooterComponent={
-          <>
-            {cart.length === 0 ? (
-              <View style={styles.emptyCart}>
-                <Text style={styles.emptyCartText}>Your cart is empty</Text>
-                <Text style={styles.emptyCartHint}>Add items from the shop below</Text>
-              </View>
-            ) : (
-              cart.map((item) => {
-                const lineTotal = Number(item.price) * item.quantity;
-                return (
-                  <View key={item.id} style={styles.cartItem}>
-                    <View style={styles.cartItemHeader}>
-                      <Text style={styles.cartItemName}>{item.name}</Text>
-                      <Text style={styles.cartItemTotal}>₱{lineTotal.toFixed(2)}</Text>
-                    </View>
-                    <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
-                    <View style={styles.cartItemControls}>
-                      <TouchableOpacity onPress={() => updateQty(item.id, item.quantity - 1)} style={styles.qtyBtn}>
-                        <Text style={styles.qtyBtnText}>−</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.qtyText}>{item.quantity}</Text>
-                      <TouchableOpacity onPress={() => updateQty(item.id, item.quantity + 1)} style={styles.qtyBtn}>
-                        <Text style={styles.qtyBtnText}>+</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => updateQty(item.id, 0)} style={styles.removeBtn}>
-                        <Text style={styles.removeBtnText}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })
-            )}
-
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Quick Add from Shop</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopScroll}>
-              {products.slice(0, 10).map((product) => (
-                <TouchableOpacity key={product.id} style={styles.quickProduct} onPress={() => addToCart(product)}>
-                  <Text style={styles.quickName} numberOfLines={1}>{product.name}</Text>
-                  <Text style={styles.quickPrice}>₱{Number(product.price).toFixed(2)}</Text>
-                  <Text style={styles.quickAdd}>Add</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Recent Orders</Text>
-            {recentOrders.length === 0 ? (
-              <Text style={styles.muted}>No orders yet.</Text>
-            ) : (
-              recentOrders.map((order) => (
-                <View key={order.id} style={styles.orderCard}>
-                  <View style={styles.orderHeader}>
-                    <Text style={styles.orderNumber}>Order #{order.id}</Text>
-                    <View style={[styles.orderStatus, { backgroundColor: colors.statusPending + '15' }]}>
-                      <Text style={[styles.orderStatusText, { color: colors.statusPending }]}>{order.status}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.orderTotal}>₱{Number(order.total).toFixed(2)}</Text>
-                  {order.status === 'pending' && (
-                    <TouchableOpacity
-                      style={[styles.cancelBtn, cancellingId === order.id && styles.buttonDisabled]}
-                      onPress={() => handleCancelOrder(order.id)}
-                      disabled={cancellingId === order.id}
-                    >
-                      <Text style={styles.cancelBtnText}>{cancellingId === order.id ? 'Cancelling...' : 'Cancel'}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))
-            )}
-          </>
-        }
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      />
+            <TouchableOpacity
+              style={[styles.placeBtn, placing && styles.buttonDisabled]}
+              onPress={placeOrder}
+              disabled={placing}
+            >
+              {placing ? (
+                <ActivityIndicator color={colors.textInverse} />
+              ) : (
+                <Text style={styles.placeBtnText}>Proceed to Checkout</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
-
-const ScrollView = ({ horizontal, showsHorizontalScrollIndicator, children, style }: any) => {
-  const { ScrollView: RNScrollView } = require('react-native');
-  return (
-    <RNScrollView horizontal={horizontal} showsHorizontalScrollIndicator={showsHorizontalScrollIndicator} style={style}>
-      {children}
-    </RNScrollView>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
-  loadingScreen: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-  },
-  scrollContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-  },
   header: {
     backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
     padding: spacing.lg,
-    marginBottom: spacing.md,
+    margin: spacing.md,
     ...shadows.sm,
   },
   storeName: {
@@ -285,7 +166,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: spacing.xs,
   },
-  greeting: {
+  title: {
     ...typography.title,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
@@ -294,63 +175,9 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  cartSummary: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.md,
-  },
-  cartSummaryTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  cartSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  cartSummaryLabel: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  cartSummaryValue: {
-    ...typography.bodyBold,
-    color: colors.textPrimary,
-  },
-  cartSummaryPrice: {
-    ...typography.heading,
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  placeBtn: {
-    marginTop: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  placeBtnText: {
-    ...typography.bodyBold,
-    color: colors.textInverse,
-  },
-  sectionTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  emptyCart: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  emptyCartText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  emptyCartHint: {
-    ...typography.caption,
-    color: colors.textMuted,
+  listContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   cartItem: {
     backgroundColor: colors.bgCard,
@@ -359,23 +186,45 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...shadows.sm,
   },
-  cartItemHeader: {
+  cartItemTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  cartItemImageWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartItemImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  productEmoji: {
+    fontSize: 28,
+  },
+  cartItemInfo: {
+    flex: 1,
   },
   cartItemName: {
     ...typography.subheading,
     color: colors.textPrimary,
   },
-  cartItemTotal: {
-    ...typography.bodyBold,
-    color: colors.primary,
-  },
   cartItemPrice: {
     ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    marginTop: 2,
+  },
+  cartItemTotal: {
+    ...typography.bodyBold,
+    color: colors.primary,
+    marginTop: 2,
   },
   cartItemControls: {
     flexDirection: 'row',
@@ -415,85 +264,69 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.error,
   },
-  shopScroll: {
-    marginBottom: spacing.md,
-  },
-  quickProduct: {
-    width: 120,
+  footer: {
     backgroundColor: colors.bgCard,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    marginRight: spacing.sm,
-    alignItems: 'center',
-    ...shadows.sm,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: 80,
+    ...shadows.md,
   },
-  quickName: {
-    ...typography.caption,
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  summaryLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  summaryValue: {
+    ...typography.bodyBold,
     color: colors.textPrimary,
-    textAlign: 'center',
   },
-  quickPrice: {
-    ...typography.caption,
+  summaryPrice: {
+    ...typography.heading,
     color: colors.primary,
     fontWeight: 'bold',
-    marginTop: 2,
   },
-  quickAdd: {
-    ...typography.caption,
-    color: colors.textInverse,
+  placeBtn: {
+    marginTop: spacing.md,
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radii.pill,
-    marginTop: spacing.xs,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
   },
-  muted: {
+  placeBtnText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  emptyCart: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  emptyCartText: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  emptyCartHint: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginBottom: spacing.lg,
   },
-  orderCard: {
-    backgroundColor: colors.bgCard,
+  shopBtn: {
+    backgroundColor: colors.primary,
     borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    ...shadows.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  orderNumber: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-  },
-  orderStatus: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  orderStatusText: {
-    ...typography.caption,
-    fontWeight: 'bold',
-  },
-  orderTotal: {
-    ...typography.heading,
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  cancelBtn: {
-    backgroundColor: colors.error + '10',
-    borderRadius: radii.sm,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.error + '30',
-  },
-  cancelBtnText: {
-    ...typography.caption,
-    color: colors.error,
+  shopBtnText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
   },
   buttonDisabled: {
     opacity: 0.6,

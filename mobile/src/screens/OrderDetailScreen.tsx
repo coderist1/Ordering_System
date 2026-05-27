@@ -58,9 +58,9 @@ export default function OrderDetailScreen() {
 
   const userRole = user?.role || (user as any)?.profile?.role
   const isAdmin = userRole === 'admin'
-  const isUser = userRole === 'user'
+  const isCustomer = userRole === 'customer' || userRole === 'user'
   const isMyOrder = (order as any)?.created_by_id === (user as any)?.id
-  const canReview = isUser && isMyOrder && order?.status === 'completed' && !(order as any)?.review
+  const canReview = isCustomer && isMyOrder && order?.status === 'completed' && !(order as any)?.review
   const hasReview = !!(order as any)?.review
 
   const nextStatus = useMemo(() => {
@@ -228,7 +228,7 @@ export default function OrderDetailScreen() {
             </TouchableOpacity>
           )}
 
-          {isUser && order.status === 'pending' && isMyOrder && (
+          {isCustomer && order.status === 'pending' && isMyOrder && (
             <TouchableOpacity
               style={[styles.cancelButton, cancelling && styles.buttonDisabled]}
               onPress={handleCancel}

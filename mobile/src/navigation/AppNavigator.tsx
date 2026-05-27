@@ -25,7 +25,8 @@ export default function AppNavigator() {
     return null;
   }
 
-  const userRole = user?.role || (user as any)?.profile?.role || 'customer';
+  const userRoleRaw = user?.role || (user as any)?.profile?.role || 'customer';
+  const userRole = userRoleRaw === 'user' ? 'customer' : userRoleRaw;
 
   // Function to get the appropriate navigator based on role
   const getMainNavigator = () => {

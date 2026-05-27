@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { fetchMe, normalizeUser, setAuthToken } from '../api/client';
+import { fetchMe, normalizeUser, setAuthToken, logout as apiLogout } from '../api/client';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -136,6 +136,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      const refreshToken = await getFromStorage('refresh_token');
+      if (refreshToken) {
+        try {
+          await apiLogout(refreshToken);
+        } catch {
+          // Token may already be invalid; still clear local session.
+        }
+      }
       await removeFromStorage('access_token');
       await removeFromStorage('refresh_token');
       await removeFromStorage('user');

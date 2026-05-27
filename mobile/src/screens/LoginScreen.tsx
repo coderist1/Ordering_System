@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
-import { login as apiLogin } from '../api/client'
+import { login as apiLogin, normalizeUser } from '../api/client'
 import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
 
 export default function LoginScreen({ navigation }: any) {
@@ -23,12 +23,6 @@ export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
-
-  const normalizeUserPayload = (payload: any) => {
-    const raw = payload?.user ? payload.user : payload
-    const role = raw?.profile?.role || raw?.role || 'user'
-    return { ...raw, role, profile: raw?.profile || null }
-  }
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -40,7 +34,7 @@ export default function LoginScreen({ navigation }: any) {
     try {
       const res = await apiLogin({ email, password })
       const { access, refresh, user: userObj } = res.data
-      const userData = normalizeUserPayload(userObj ? { user: userObj } : res.data)
+      const userData = normalizeUser(userObj ? { user: userObj } : res.data)
       await login(access, refresh, userData)
     } catch (error: any) {
       const msg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Invalid credentials'

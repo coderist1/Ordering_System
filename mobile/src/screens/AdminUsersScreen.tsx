@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchUsers, updateUserRole } from '../api/client';
 import { colors, radii, spacing, typography, shadows } from '../theme/design';
@@ -170,11 +170,6 @@ export default function AdminUsersScreen() {
     </SafeAreaView>
   );
 }
-
-const ActivityIndicator = ({ size, color, style }: any) => {
-  const { ActivityIndicator: RNActivityIndicator } = require('react-native');
-  return <RNActivityIndicator size={size} color={color} style={style} />;
-};
 
 const styles = StyleSheet.create({
   container: {
