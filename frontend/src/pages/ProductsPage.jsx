@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchProducts, createProduct, updateProduct, deleteProduct } from '@/api/ordersApi'
+import ProductCard from '@/components/ProductCard'
 
 // ── Constants ────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ const inp = {
 
 function ProductModal({ product, onClose, onSaved }) {
   const isEdit = !!product?.id
-  const emptyForm = { name: '', description: '', price: '', category: 'Others', emoji: '📦', badge: '', is_active: true }
+  const emptyForm = { name: '', description: '', price: '', category: 'Others', emoji: '📦', badge: '', image_url: '', is_active: true }
   const [form, setForm] = useState(
     product || emptyForm
   )
@@ -36,7 +37,7 @@ function ProductModal({ product, onClose, onSaved }) {
   useEffect(() => {
     setForm(product || emptyForm)
     setImageFile(null)
-    setImagePreview(product?.image || '')
+    setImagePreview(product?.image || product?.image_url || '')
     return () => {
       if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
     }
@@ -46,7 +47,7 @@ function ProductModal({ product, onClose, onSaved }) {
   const onPickImage = (file) => {
     if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
     setImageFile(file)
-    setImagePreview(file ? URL.createObjectURL(file) : (product?.image || ''))
+    setImagePreview(file ? URL.createObjectURL(file) : (form.image_url || product?.image || product?.image_url || ''))
   }
 
   const submit = async (e) => {
@@ -161,6 +162,15 @@ function ProductModal({ product, onClose, onSaved }) {
                 />
               </div>
             )}
+            <input
+              style={{ ...inp, marginTop: 10 }}
+              placeholder="Or paste image URL (https://...)"
+              value={form.image_url || ''}
+              onChange={e => {
+                set('image_url', e.target.value)
+                if (!imageFile) setImagePreview(e.target.value)
+              }}
+            />
           </div>
 
           {/* Name */}
@@ -443,86 +453,16 @@ export default function ProductsPage() {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 16, padding: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20, padding: 16 }}>
               {products.map((p, i) => (
-                <div
+                <ProductCard
                   key={p.id}
-                  style={{
-                    background: '#fff',
-                    borderRadius: 16,
-                    border: `1px solid ${p.is_active ? '#e5e7eb' : '#fecaca'}`,
-                    boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
-                    overflow: 'hidden',
-                    opacity: p.is_active ? 1 : 0.65,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    animation: 'fadeUp 0.35s ease both',
-                    animationDelay: `${i * 40}ms`,
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 8px rgba(0,0,0,0.04)' }}
-                >
-                  {/* Card top */}
-                  <div style={{ background: '#EDEAFF', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, position: 'relative', overflow: 'hidden' }}>
-                    {p.image ? (
-                      <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <span>{p.emoji || '📦'}</span>
-                    )}
-                    {p.badge && (
-                      <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#fff', color: '#6C47FF', border: '1px solid #ddd6fe' }}>
-                        {p.badge}
-                      </span>
-                    )}
-                    {!p.is_active && (
-                      <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#fef2f2', color: '#ef4444' }}>
-                        Inactive
-                      </span>
-                    )}
-                  </div>
-
-                   {/* Card body */}
-                   <div style={{ padding: '14px 14px 12px' }}>
-                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3 }}>
-                       <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', flex: 1, marginRight: 6, lineHeight: 1.3 }}>{p.name}</p>
-                       <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.category}</span>
-                     </div>
-                     {p.description && (
-                       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                         {p.description}
-                       </p>
-                     )}
-                     {p.created_by_username && (
-                       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, lineHeight: 1.4 }}>
-                         by{' '}
-                         <span style={{ fontWeight: 600, color: '#111827' }}>{p.created_by_username}</span>
-                       </p>
-                     )}
-                     <p style={{ fontSize: 17, fontWeight: 800, color: '#6C47FF', marginBottom: 12 }}>
-                       ₱{parseFloat(p.price).toFixed(2)}
-                     </p>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={() => setEditPrd(p)}
-                        className="filter-btn"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#6C47FF'; e.currentTarget.style.color = '#6C47FF'; e.currentTarget.style.background = '#EDEAFF' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.color = ''; e.currentTarget.style.background = '' }}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => setDelPrd(p)}
-                        style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#fff' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444' }}
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  product={p}
+                  variant="manage"
+                  index={i}
+                  onEdit={setEditPrd}
+                  onDelete={setDelPrd}
+                />
               ))}
             </div>
 

@@ -115,7 +115,51 @@ def _fallback_response(message):
     return random.choice(FALLBACK_RESPONSES.get(intent, FALLBACK_RESPONSES["default"]))
 
 
-# ── OpenAI / LLM integration ──────────────────────────────────────────────
+# ── LLM integration ─────────────────────────────────────────────────────────
+def _call_ollama(messages, stream=False):
+    """Call a local or Railway-hosted Ollama instance."""
+    from django.conf import settings
+
+    ollama_url = getattr(settings, 'OLLAMA_URL', os.getenv('OLLAMA_URL', 'http://localhost:11434'))
+    ollama_model = getattr(settings, 'OLLAMA_MODEL', os.getenv('OLLAMA_MODEL', 'qwen2.5:0.5b'))
+
+    prompt_parts = []
+    system_parts = []
+    for msg in messages:
+        role = msg.get('role', 'user')
+        content = msg.get('content', '')
+        if role == 'system':
+            system_parts.append(content)
+        elif role == 'user':
+            prompt_parts.append(f"User: {content}")
+        elif role == 'assistant':
+            prompt_parts.append(f"Assistant: {content}")
+
+    try:
+        resp = requests.post(
+            f"{ollama_url.rstrip('/')}/api/generate",
+            json={
+                'model': ollama_model,
+                'prompt': '\n\n'.join(prompt_parts),
+                'system': '\n\n'.join(system_parts) or None,
+                'options': {'temperature': 0.7},
+                'stream': stream,
+            },
+            timeout=60,
+            stream=stream,
+        )
+        resp.raise_for_status()
+
+        if stream:
+            return resp
+
+        data = resp.json()
+        return (data.get('response') or '').strip() or None
+    except Exception as e:
+        logger.error(f"Ollama API error: {e}")
+        return None
+
+
 def _call_openai(messages, stream=False):
     """Call OpenAI Chat Completion API."""
     api_key = os.getenv("OPENAI_API_KEY", "")
@@ -235,18 +279,24 @@ def chatbot_query(request):
     response_text = None
     source = "fallback"
 
-    # 1. Try Azure OpenAI first
-    response_text = _call_azure_openai(messages)
+    # 1. Try Ollama (local or Railway private service)
+    response_text = _call_ollama(messages)
     if response_text is not None:
-        source = "azure"
+        source = "ollama"
 
-    # 2. Try OpenAI
+    # 2. Try Azure OpenAI
+    if response_text is None:
+        response_text = _call_azure_openai(messages)
+        if response_text is not None:
+            source = "azure"
+
+    # 3. Try OpenAI
     if response_text is None:
         response_text = _call_openai(messages)
         if response_text is not None:
             source = "openai"
 
-    # 3. Fallback to rule-based
+    # 4. Fallback to rule-based
     if response_text is None:
         response_text = _fallback_response(message)
         source = "fallback"
@@ -306,8 +356,12 @@ def chatbot_stream(request):
     def generate_stream():
         """Generator function for streaming response."""
         try:
-            # Try Azure OpenAI first with streaming
-            response_stream = _call_azure_openai(messages, stream=True)
+            # Try Ollama first with streaming
+            response_stream = _call_ollama(messages, stream=True)
+
+            if response_stream is None:
+                # Try Azure OpenAI with streaming
+                response_stream = _call_azure_openai(messages, stream=True)
 
             if response_stream is None:
                 # Try OpenAI with streaming
@@ -319,7 +373,7 @@ def chatbot_stream(request):
                 yield f"data: {json.dumps({'chunk': response_text, 'done': True})}\n\n"
                 return
 
-            # Stream the response
+            # Stream the response (OpenAI/Azure SSE format or Ollama JSON lines)
             accumulated_text = ""
             for line in response_stream.iter_lines():
                 if line:
@@ -333,6 +387,17 @@ def chatbot_stream(request):
                                     chunk = delta['content']
                                     accumulated_text += chunk
                                     yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+                        except json.JSONDecodeError:
+                            continue
+                    else:
+                        try:
+                            data = json.loads(line)
+                            chunk = data.get('response', '')
+                            if chunk:
+                                accumulated_text += chunk
+                                yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+                            if data.get('done'):
+                                break
                         except json.JSONDecodeError:
                             continue
 
@@ -360,12 +425,35 @@ def chatbot_info(request):
     GET /api/chatbot/info/
     Returns chatbot configuration status (no secrets exposed).
     """
+    from django.conf import settings
+
     has_openai_key = bool(os.getenv("OPENAI_API_KEY", ""))
     has_azure = bool(os.getenv("AZURE_OPENAI_ENDPOINT", "") and os.getenv("AZURE_OPENAI_API_KEY", ""))
+    ollama_url = getattr(settings, 'OLLAMA_URL', os.getenv('OLLAMA_URL', 'http://localhost:11434'))
+    ollama_model = getattr(settings, 'OLLAMA_MODEL', os.getenv('OLLAMA_MODEL', 'qwen2.5:0.5b'))
+
+    ollama_ready = False
+    try:
+        ping = requests.get(f"{ollama_url.rstrip('/')}/", timeout=5)
+        ollama_ready = ping.status_code == 200
+    except Exception:
+        ollama_ready = False
+
+    if ollama_ready:
+        provider = "ollama"
+    elif has_azure:
+        provider = "azure"
+    elif has_openai_key:
+        provider = "openai"
+    else:
+        provider = "fallback"
 
     return Response({
         "enabled": True,
-        "provider": "azure" if has_azure else ("openai" if has_openai_key else "fallback"),
-        "fallback_mode": not (has_openai_key or has_azure),
-        "message": "Chatbot is ready. Configure OPENAI_API_KEY or Azure credentials for AI responses.",
+        "provider": provider,
+        "ollama_url": ollama_url,
+        "ollama_model": ollama_model,
+        "ollama_ready": ollama_ready,
+        "fallback_mode": provider == "fallback",
+        "message": "Chatbot is ready. Ollama is used when reachable; otherwise OpenAI/Azure or rule-based fallback.",
     })

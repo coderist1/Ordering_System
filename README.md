@@ -379,7 +379,46 @@ EMAIL_HOST_USER=your-login@smtp-brevo.com
 EMAIL_HOST_PASSWORD=your-brevo-smtp-key
 DEFAULT_FROM_EMAIL=Ordering System <your-verified-sender@gmail.com>
 BREVO_API_KEY=your-brevo-api-key
+
+# FAQ chatbot (no Ollama — $0 extra)
+CHATBOT_FAQ_ONLY=true
+
+# Auto-created on every deploy (change in production)
+ADMIN_USERNAME=adminconey
+ADMIN_EMAIL=adminconey@gmail.com
+ADMIN_PASSWORD=adminconey
 ```
+
+On deploy, the backend automatically runs migrations, seeds demo products/knowledge base, and creates the admin account.
+
+**Default accounts after deploy:**
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `adminconey` | `adminconey` |
+| Owner (demo) | `ownerdemo` | `ownerdemo123` |
+| Customer (demo) | `customerdemo` | `customerdemo123` |
+
+Django admin: `https://ordering-system-backend-production.up.railway.app/admin/` — log in with the admin account above. Products, orders, users, and knowledge base are all manageable there.
+
+### Chatbot (FAQ mode — no Ollama cost)
+
+Production uses **FAQ/knowledge-base mode** by default on Railway (`CHATBOT_FAQ_ONLY=true`). The chatbot matches your questions against seeded Q&A entries — no AI server needed, **$0 extra**.
+
+On **ordering-system-backend** variables:
+
+```bash
+CHATBOT_FAQ_ONLY=true
+```
+
+Admins can add more Q&A in Django admin → **Knowledge bases**, using this format:
+
+```
+Question: How do I reset my password?
+Answer: Use the Forgot Password page and follow the email link.
+```
+
+To enable Ollama later, set `CHATBOT_FAQ_ONLY=false` and deploy a separate Ollama service (see `deploy/ollama/`).
 
 ### Railway frontend environment variables
 

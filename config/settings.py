@@ -97,22 +97,39 @@ except Exception:
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-1-up16-production.up.railway.app')
-# Default to local filesystem storage; if cloudinary is installed we'll override below
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
     'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
     'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
 }
 
-# Try to use Cloudinary storage when available, otherwise fall back to local storage
-try:
-    from cloudinary_storage.storage import MediaCloudinaryStorage  # type: ignore[import-not-found]
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    storage = MediaCloudinaryStorage()
-except Exception:
-    # Cloudinary not installed or not configured in this environment; use local storage
-    storage = None
+_cloudinary_ready = all(CLOUDINARY_STORAGE.values())
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': os.getenv(
+            'STATICFILES_STORAGE',
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
+            if not DEBUG
+            else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        ),
+    },
+}
+
+if _cloudinary_ready:
+    try:
+        import cloudinary  # type: ignore
+        import cloudinary_storage  # noqa: F401
+        STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
+    except Exception:
+        pass
+
+# Legacy setting kept for older django-cloudinary-storage integrations
+DEFAULT_FILE_STORAGE = STORAGES['default']['BACKEND']
 
 
 
@@ -165,12 +182,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-
-# Whitenoise serves static files efficiently in production deployments.
-STATICFILES_STORAGE = os.getenv(
-    'STATICFILES_STORAGE',
-    'whitenoise.storage.CompressedManifestStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage'
-)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -268,6 +279,17 @@ ACTIVATION_TOKEN_EXPIRE_HOURS = 24
 BACKEND_URL = os.getenv(
     'BACKEND_URL',
     'https://ordering-system-backend-production.up.railway.app',
+)
+
+# ─────────────────────────────────────────────
+#  CHATBOT (FAQ-only in production, optional Ollama locally)
+# ─────────────────────────────────────────────
+OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'qwen2.5:0.5b')
+# Production on Railway: FAQ/knowledge-base only (no Ollama cost). Set false + OLLAMA_URL to enable AI.
+CHATBOT_FAQ_ONLY = env_bool(
+    'CHATBOT_FAQ_ONLY',
+    bool(os.getenv('RAILWAY_ENVIRONMENT')),
 )
 
 

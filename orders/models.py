@@ -2,15 +2,17 @@ from django.db import models
 from django.contrib.auth.models import User
 import uuid
 
+from .roles import CUSTOMER_ROLE, OWNER_ROLE, ADMIN_ROLE
+
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
-        ('user', 'User'),
-        ('owner', 'Owner'),
-        ('admin', 'Admin'),
+        (CUSTOMER_ROLE, 'Customer'),
+        (OWNER_ROLE, 'Owner'),
+        (ADMIN_ROLE, 'Admin'),
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=CUSTOMER_ROLE)
     profile_image = models.ImageField(upload_to='profiles/', null=True, blank=True)
     address = models.CharField(max_length=255, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
@@ -89,6 +91,7 @@ class Product(models.Model):
     emoji       = models.CharField(max_length=10, blank=True, default='📦')
     badge       = models.CharField(max_length=50, blank=True)  # e.g. "New", "Best Seller"
     image       = models.ImageField(upload_to='products/', null=True, blank=True)
+    image_url   = models.URLField(max_length=500, blank=True, default='')
     is_active   = models.BooleanField(default=True)
     created_by  = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='products'

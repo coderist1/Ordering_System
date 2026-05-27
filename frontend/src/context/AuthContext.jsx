@@ -3,9 +3,14 @@ import { login as loginApi, logout as logoutApi, register as registerApi, update
 
 const AuthContext = createContext(null)
 
+function normalizeRole(role) {
+  if (!role || role === 'user') return 'customer'
+  return role
+}
+
 function normalizeUserPayload(payload) {
   const raw = payload?.user ? payload.user : payload
-  const role = raw?.profile?.role || raw?.role || 'user'
+  const role = normalizeRole(raw?.profile?.role || raw?.role || 'customer')
   return {
     ...raw,
     role,

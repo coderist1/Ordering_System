@@ -129,7 +129,7 @@ const Profile = () => {
             <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
               Edit Profile
             </button>
-            {user?.role === 'user' && (
+            {(user?.role === 'customer' || user?.role === 'user') && (
               <button
                 className="btn btn-secondary"
                 onClick={() => navigate('/apply-owner')}

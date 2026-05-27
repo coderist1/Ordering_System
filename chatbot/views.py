@@ -1,4 +1,5 @@
 import requests
+from django.conf import settings
 from pypdf import PdfReader
 from bs4 import BeautifulSoup
 
@@ -53,14 +54,16 @@ User:
 """
 
         try:
+            ollama_url = getattr(settings, 'OLLAMA_URL', 'http://localhost:11434')
+            ollama_model = getattr(settings, 'OLLAMA_MODEL', 'qwen2.5:0.5b')
             response = requests.post(
-                "http://localhost:11434/api/generate",
+                f"{ollama_url.rstrip('/')}/api/generate",
                 json={
-                    "model": "qwen2.5:0.5b",
+                    "model": ollama_model,
                     "prompt": prompt,
                     "stream": False
                 },
-                timeout=30
+                timeout=60
             )
             response.raise_for_status()
             data = response.json()

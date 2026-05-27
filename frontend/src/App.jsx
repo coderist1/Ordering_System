@@ -48,8 +48,9 @@ function PrivateRoute({ children, roles }) {
 // ── Dashboard Router ─────────────────────────────────────────
 function DashboardComponent() {
     const { user } = useAuth()
-    if (user?.role === 'admin')  return <AdminDashboard />
-    if (user?.role === 'owner')  return <OwnerDashboard />
+    const role = user?.role === 'user' ? 'customer' : user?.role
+    if (role === 'admin')  return <AdminDashboard />
+    if (role === 'owner')  return <OwnerDashboard />
     return <CustomerDashboard />
   }
 

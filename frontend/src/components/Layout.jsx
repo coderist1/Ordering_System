@@ -33,6 +33,11 @@ export default function Layout() {
 
   // ── Role-based navigation ──
   const roleNavItems = {
+    customer: [
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/profile', icon: IconProfile, label: 'Profile' },
+    ],
     user: [
       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
       { to: '/orders', icon: IconOrders, label: 'Orders' },
@@ -54,7 +59,7 @@ owner: [
     ],
   }
 
-  const navItems = roleNavItems[user?.role] || roleNavItems.user
+  const navItems = roleNavItems[user?.role] || roleNavItems.customer
 
   const WORKFLOW = [
     { label: 'Pending', color: '#F59E0B', icon: IconWorkflowPending },

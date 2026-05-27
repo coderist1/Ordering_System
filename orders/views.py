@@ -1,4 +1,5 @@
 import logging
+import os
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -40,6 +41,8 @@ from .serializers import (
     ChatMessageSerializer,
 )
 from .email_utils import send_activation_email, send_password_reset_email
+from .roles import get_role, is_admin, is_staff, is_customer, normalize_role, CUSTOMER_ROLE, OWNER_ROLE, ADMIN_ROLE
+from .chatbot_faq import find_best_qa_match, format_faq_response, answer_from_knowledge_base
 import requests
 from django.core.files.base import ContentFile
 from urllib.parse import urlparse
@@ -51,22 +54,6 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────
-
-def get_role(user):
-    try:
-        return user.profile.role
-    except UserProfile.DoesNotExist:
-        return 'user'
-
-
-def is_admin(user):
-    return get_role(user) == 'admin'
-
-
-def is_staff(user):
-    """Admins and staff-level users who can manage orders and products."""
-    return get_role(user) in ['admin', 'owner']
-
 
 OLLAMA_MODEL = getattr(settings, 'OLLAMA_MODEL', 'qwen2.5:0.5b')
 OLLAMA_URL = getattr(settings, 'OLLAMA_URL', 'http://localhost:11434')
@@ -201,6 +188,64 @@ def _call_ollama(prompt, system=None):
     response.raise_for_status()
     data = response.json()
     return data.get('response', '').strip()
+
+
+def _ollama_enabled():
+    if getattr(settings, 'CHATBOT_FAQ_ONLY', False):
+        return False
+    explicit = os.getenv('OLLAMA_ENABLED', '').strip().lower()
+    if explicit in ('0', 'false', 'no', 'off'):
+        return False
+    if explicit in ('1', 'true', 'yes', 'on'):
+        return True
+    return settings.DEBUG
+
+
+def _generate_chatbot_response(user_message):
+    """FAQ-first chatbot. Uses Ollama only when explicitly enabled."""
+    sources = []
+
+    match = find_best_qa_match(user_message)
+    if match:
+        answer, title, url, _score = match
+        if url:
+            sources = [url]
+        return format_faq_response(answer, title, url), sources
+
+    qa = _find_exact_qa_match(user_message)
+    if qa:
+        answer_text, title, url = qa
+        if url:
+            sources = [url]
+        return format_faq_response(answer_text, title, url), sources
+
+    sources, context = _build_relevant_knowledge_context(user_message)
+    if not context:
+        return STRICT_CHAT_REFUSAL, sources
+
+    if not _ollama_enabled():
+        return answer_from_knowledge_base(user_message, context, sources)
+
+    prompt = f"""
+{STRICT_CHAT_SYSTEM}
+
+Knowledge:
+{context}
+
+User question:
+{user_message}
+
+Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
+""".strip()
+
+    try:
+        ai_response = _call_ollama(prompt)
+        if ai_response:
+            return ai_response, sources
+    except Exception as exc:
+        logger.warning('Ollama unavailable, using FAQ fallback: %s', exc)
+
+    return answer_from_knowledge_base(user_message, context, sources)
 
 
 def _find_exact_qa_match(user_message):
@@ -398,7 +443,7 @@ class RegisterView(APIView):
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'role': getattr(getattr(user, 'profile', None), 'role', 'user'),
+                    'role': get_role(user),
                 },
                 'email': user.email,
                 'message': 'Registration successful! Please check your email to activate your account.',
@@ -714,6 +759,7 @@ class MeView(APIView):
 class ProductListCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
+    parser_classes         = [JSONParser, FormParser, MultiPartParser]
 
     def get(self, request):
         """Get products - admins see all, users see only active."""
@@ -770,6 +816,7 @@ class ProductListCreateView(APIView):
 class ProductDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
+    parser_classes         = [JSONParser, FormParser, MultiPartParser]
 
     def get_product(self, pk):
         try:
@@ -855,7 +902,7 @@ class OrderListCreateView(APIView):
 
     def get(self, request):
         role = get_role(request.user)
-        if role == 'user':
+        if is_customer(request.user):
             orders = Order.objects.filter(created_by=request.user).order_by('-created_at')
         else:
             orders = Order.objects.all().order_by('-created_at')
@@ -894,7 +941,7 @@ class OrderDetailView(APIView):
             return None
         
         # Users can only access their own orders
-        if get_role(user) == 'user' and order.created_by != user:
+        if is_customer(user) and order.created_by != user:
             return None
         
         return order
@@ -913,7 +960,7 @@ class OrderDetailView(APIView):
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         
         # Only customers updating their own orders can update notes
-        if get_role(request.user) == 'user':
+        if is_customer(request.user):
             order.notes = request.data.get('notes', order.notes)
             order.save()
         elif is_staff(request.user):
@@ -975,7 +1022,7 @@ class OrderCancelView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
-        if get_role(request.user) != 'customer':
+        if not is_customer(request.user):
             return Response(
                 {'detail': 'Only customers can cancel orders.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -1012,7 +1059,7 @@ class OrderSummaryView(APIView):
 
     def get(self, request):
         role = get_role(request.user)
-        orders = Order.objects.filter(created_by=request.user) if role == 'user' else Order.objects.all()
+        orders = Order.objects.filter(created_by=request.user) if is_customer(request.user) else Order.objects.all()
         return Response({
             'total_orders':      orders.count(),
             'total_revenue':     float(sum(o.total_amount for o in orders)),
@@ -1083,8 +1130,8 @@ class UserRoleUpdateView(APIView):
         if user == request.user:
             return Response({'detail': 'You cannot change your own role.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        new_role = request.data.get('role')
-        if new_role not in ['customer', 'owner', 'admin']:
+        new_role = normalize_role(request.data.get('role'))
+        if new_role not in [CUSTOMER_ROLE, OWNER_ROLE, ADMIN_ROLE]:
             return Response({'detail': 'Invalid role. Must be customer, owner, or admin.'}, status=status.HTTP_400_BAD_REQUEST)
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -1118,38 +1165,7 @@ class ChatbotView(ListCreateAPIView):
             return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         user_chat = ChatMessage.objects.create(role='user', message=user_message)
-
-        # Fast-path: if there's an exact Q/A pair, return that answer directly (FAQ-first)
-        qa = _find_exact_qa_match(user_message)
-        if qa:
-            answer_text, title, url = qa
-            ai_text = answer_text.strip()
-            source_line = f"{title} ({url})" if url else title
-            ai_response = f"{ai_text}\n\nSource: {source_line}"
-        else:
-            sources, context = _build_relevant_knowledge_context(user_message)
-            if not context:
-                ai_response = STRICT_CHAT_REFUSAL
-            else:
-                prompt = f"""
-{STRICT_CHAT_SYSTEM}
-
-Knowledge:
-{context}
-
-User question:
-{user_message}
-
-Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
-""".strip()
-
-                try:
-                    ai_response = _call_ollama(prompt)
-                    if not ai_response:
-                        ai_response = STRICT_CHAT_REFUSAL
-                except Exception as exc:
-                    ai_response = f'Chatbot error: {exc}'
-
+        ai_response, sources = _generate_chatbot_response(user_message)
         ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
 
         return Response({
@@ -1173,53 +1189,7 @@ class ChatbotPublicView(ListCreateAPIView):
             return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
         # Save user message (anonymous)
         user_chat = ChatMessage.objects.create(role='user', message=user_message)
-
-        # Fast-path: if there's an exact Q/A pair in the KB, return that answer directly
-        qa = _find_exact_qa_match(user_message)
-        if qa:
-            answer_text, title, url = qa
-            ai_text = answer_text.strip()
-            source_line = f"{title} ({url})" if url else title
-            ai_response = f"{ai_text}\n\nSource: {source_line}"
-            ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
-            sources = [url] if url else []
-            return Response({
-                'user': ChatMessageSerializer(user_chat).data,
-                'assistant': ChatMessageSerializer(ai_chat).data,
-                'sources': sources,
-            }, status=status.HTTP_201_CREATED)
-
-        sources, context = _build_relevant_knowledge_context(user_message)
-        if not context:
-            ai_response = STRICT_CHAT_REFUSAL
-        else:
-            prompt = f"""
-{STRICT_CHAT_SYSTEM}
-
-Knowledge:
-{context}
-
-User question:
-{user_message}
-
-Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
-""".strip()
-
-            # DEBUG: log retrieval context for public view as well
-            try:
-                print('DEBUG_PUBLIC_CHAT_SOURCES:', sources)
-                print('DEBUG_PUBLIC_CHAT_CONTEXT_SNIPPET:', (context or '')[:2000])
-                print('DEBUG_PUBLIC_CHAT_PROMPT_SNIPPET:', prompt[:2000])
-            except Exception:
-                pass
-
-            try:
-                ai_response = _call_ollama(prompt)
-                if not ai_response:
-                    ai_response = STRICT_CHAT_REFUSAL
-            except Exception as exc:
-                ai_response = f'Chatbot error: {exc}'
-
+        ai_response, sources = _generate_chatbot_response(user_message)
         ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
 
         return Response({
@@ -1240,7 +1210,7 @@ class ReviewView(APIView):
 
     def post(self, request, pk):
         """Create a review for a completed order - customers only."""
-        if get_role(request.user) not in ['user', 'customer']:
+        if not is_customer(request.user):
             return Response(
                 {'detail': 'Only customers can leave reviews.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -1282,6 +1252,12 @@ class OwnerApplicationCreateView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def post(self, request):
+        if is_staff(request.user):
+            return Response(
+                {'error': 'Only customers can apply for owner status.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Check if user is already an owner/admin
         if is_admin(request.user):
             return Response(
@@ -1402,7 +1378,7 @@ class NotificationView(APIView):
         role = get_role(request.user)
         notifications = []
 
-        if role in ['admin']:
+        if is_admin(request.user):
             # Show pending orders to admins
             for order in Order.objects.filter(status='pending').order_by('-created_at')[:10]:
                 notifications.append({
@@ -1413,7 +1389,7 @@ class NotificationView(APIView):
                     'created_at': order.created_at,
                 })
 
-        if role == 'user':
+        if is_customer(request.user):
             # Show order status updates to customers
             for h in StatusHistory.objects.filter(order__created_by=request.user).order_by('-changed_at')[:10]:
                 notifications.append({

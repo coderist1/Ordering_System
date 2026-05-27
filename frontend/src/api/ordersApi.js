@@ -108,10 +108,15 @@ export const updateProfile = (data) => {
 }
 
 // Products
+const productRequestConfig = (data) => {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  return isFormData ? {} : undefined
+}
+
 export const fetchProducts = (params = {}) => API.get('/products/', { params })
 export const fetchProduct  = (id)          => API.get(`/products/${id}/`)
-export const createProduct = (data)        => API.post('/products/', data)
-export const updateProduct = (id, data)    => API.patch(`/products/${id}/`, data)
+export const createProduct = (data)        => API.post('/products/', data, productRequestConfig(data))
+export const updateProduct = (id, data)    => API.patch(`/products/${id}/`, data, productRequestConfig(data))
 export const deleteProduct = (id)          => API.delete(`/products/${id}/`)
 
 // Orders

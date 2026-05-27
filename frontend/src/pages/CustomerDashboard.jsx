@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { fetchOrders, fetchProducts, createOrder, cancelOrder } from '../api/ordersApi'
+import ProductCard from '@/components/ProductCard'
 
 // ── Color Palette ────────────────────────────────────────────────
 const C = {
@@ -803,71 +804,19 @@ useEffect(() => {
                         </p>
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                         {filteredProducts.map((product, i) => {
                           const inCart = cart.find(c => c.id === product.id)
                           return (
-                            <div key={product.id} style={{
-                              background: C.white, borderRadius: 16,
-                              border: `1.5px solid ${C.border}`,
-                              boxShadow: '0 1px 8px rgba(155,109,255,0.06)',
-                              overflow: 'hidden',
-                              animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 50}ms`,
-                              transition: 'transform 0.2s, box-shadow 0.2s',
-                              display: 'flex', flexDirection: 'column',
-                            }}
-                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.14)' }}
-                              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 1px 8px rgba(155,109,255,0.06)' }}
-                            >
-                              <div style={{ background: C.softBg, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative', overflow: 'hidden' }}>
-                                {product.image ? (
-                                  <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                                ) : (
-                                  <span style={{ fontSize: 48 }}>{product.emoji || '📦'}</span>
-                                )}
-                                {product.badge && (
-                                  <span style={{
-                                    position: 'absolute', top: 10, right: 10,
-                                    background: product.badge === 'New' ? C.successBg : product.badge === 'Best Seller' ? C.warnBg : C.softBg2,
-                                    color: product.badge === 'New' ? C.success : product.badge === 'Best Seller' ? C.warn : C.primary,
-                                    fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
-                                  }}>{product.badge}</span>
-                                )}
-                              </div>
-                              <div style={{ padding: '12px 14px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <p style={{ fontSize: 13, fontWeight: 800, color: C.dark, marginBottom: 3 }}>{product.name}</p>
-                                {product.description && (
-                                  <p style={{ fontSize: 11, color: C.mid, marginBottom: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', flex: 1 }}>
-                                    {product.description}
-                                  </p>
-                                )}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
-                                  <span style={{ fontSize: 17, fontWeight: 800, color: C.primary }}>₱{parseFloat(product.price).toFixed(2)}</span>
-                                  <span style={{ fontSize: 10, color: C.light, fontWeight: 600 }}>{product.category}</span>
-                                </div>
-                              </div>
-                              <div style={{ padding: '10px 14px 14px' }}>
-                                {inCart ? (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <button onClick={() => updateQty(product.id, inCart.qty - 1)} style={{ flex: 1, padding: '7px', borderRadius: 9, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 15 }}>−</button>
-                                    <span style={{ fontSize: 14, fontWeight: 800, color: C.dark, minWidth: 24, textAlign: 'center' }}>{inCart.qty}</span>
-                                    <button onClick={() => updateQty(product.id, inCart.qty + 1)} style={{ flex: 1, padding: '7px', borderRadius: 9, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 15 }}>+</button>
-                                  </div>
-                                ) : (
-                                  <button onClick={() => addToCart(product)} style={{
-                                    width: '100%', padding: '9px', borderRadius: 10, border: 'none',
-                                    background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
-                                    color: C.white, fontWeight: 700, fontSize: 12,
-                                    cursor: 'pointer', fontFamily: 'inherit',
-                                    boxShadow: '0 3px 10px rgba(124,58,237,0.25)',
-                                    transition: 'opacity 0.15s',
-                                  }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                                  >🛒 Add to Cart</button>
-                                )}
-                              </div>
-                            </div>
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              variant="shop"
+                              index={i}
+                              inCart={inCart}
+                              onAddToCart={addToCart}
+                              onUpdateQty={updateQty}
+                            />
                           )
                         })}
                       </div>

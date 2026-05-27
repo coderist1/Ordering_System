@@ -1,31 +1,48 @@
 import os
 import django
 
-# Set up Django environment
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from django.contrib.auth.models import User
-from orders.models import UserProfile
+from orders.models import Customer, UserProfile
+from orders.roles import ADMIN_ROLE
 
 def create_admin():
-    username = 'adminconey'
-    email = 'adminconey@gmail.com'
-    password = 'adminconey'
+    username = os.getenv('ADMIN_USERNAME', 'adminconey')
+    email = os.getenv('ADMIN_EMAIL', 'adminconey@gmail.com')
+    password = os.getenv('ADMIN_PASSWORD', 'adminconey')
 
-    # Create the base User as a superuser
-    if not User.objects.filter(username=username).exists():
-        user = User.objects.create_superuser(username=username, email=email, password=password)
-        print(f"✓ Superuser '{username}' created successfully.")
+    user, created = User.objects.get_or_create(
+        username=username,
+        defaults={
+            'email': email,
+            'is_staff': True,
+            'is_superuser': True,
+            'is_active': True,
+        },
+    )
+    if created:
+        user.set_password(password)
+        user.save()
+        print(f"Superuser '{username}' created successfully.")
     else:
-        user = User.objects.get(username=username)
-        print(f"ℹ User '{username}' already exists.")
+        user.is_staff = True
+        user.is_superuser = True
+        user.is_active = True
+        user.set_password(password)
+        user.save()
+        print(f"Superuser '{username}' updated.")
 
-    # Ensure the UserProfile exists and has the 'admin' role
-    profile, created = UserProfile.objects.get_or_create(user=user)
-    profile.role = 'admin'
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.role = ADMIN_ROLE
     profile.save()
-    print(f"✓ Role 'admin' assigned to UserProfile for '{username}'.")
+    print(f"Role 'admin' assigned to UserProfile for '{username}'.")
+
+    Customer.objects.get_or_create(
+        email=user.email,
+        defaults={'name': user.username, 'phone': '', 'user': user},
+    )
 
 if __name__ == '__main__':
     create_admin()

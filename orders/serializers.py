@@ -2,8 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review, OwnerApplication, KnowledgeBase, ChatMessage
-from .models import Author
+from .roles import CUSTOMER_ROLE, OWNER_ROLE, ADMIN_ROLE, normalize_role
+from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review, OwnerApplication, KnowledgeBase, ChatMessage, Author
+from .product_images import product_image_url
 
 
 # ─────────────────────────────────────────────
@@ -44,7 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_role(self, obj):
         profile = getattr(obj, 'profile', None)
-        return getattr(profile, 'role', 'user')
+        return normalize_role(getattr(profile, 'role', CUSTOMER_ROLE))
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})
@@ -88,7 +89,7 @@ class DjoserUserCreateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150)
     password = serializers.CharField(min_length=6, write_only=True)
     re_password = serializers.CharField(min_length=6, write_only=True)
-    role = serializers.ChoiceField(choices=['user', 'owner', 'admin'])
+    role = serializers.ChoiceField(choices=[CUSTOMER_ROLE, OWNER_ROLE, ADMIN_ROLE])
     profile_image = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
@@ -133,7 +134,7 @@ class DjoserUserCreateSerializer(serializers.Serializer):
 
         UserProfile.objects.create(user=user, role=role, profile_image=profile_image)
 
-        if role == 'customer':
+        if role == CUSTOMER_ROLE:
             Customer.objects.get_or_create(
                 email=user.email,
                 defaults={
@@ -200,20 +201,18 @@ class RegisterSerializer(serializers.Serializer):
         user.is_active = False
         user.save(update_fields=['is_active'])
 
-        # All new registrations are customers (user role)
-        profile_role = 'user'
+        # All new registrations are customers
+        profile_role = CUSTOMER_ROLE
         UserProfile.objects.create(user=user, role=profile_role, profile_image=profile_image)
 
-        # Auto-create Customer record for customer role
-        if role == 'customer':
-            Customer.objects.get_or_create(
-                email=user.email,
-                defaults={
-                    'name':  f"{first_name} {last_name}".strip() or user.username,
-                    'phone': '',
-                    'user':  user,
-                }
-            )
+        Customer.objects.get_or_create(
+            email=user.email,
+            defaults={
+                'name':  f"{first_name} {last_name}".strip() or user.username,
+                'phone': '',
+                'user':  user,
+            }
+        )
 
         return user
 
@@ -297,7 +296,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model  = Product
         fields = [
             'id', 'name', 'description', 'price', 'category',
-            'emoji', 'badge', 'image', 'is_active', 'created_by_id', 'created_by_username', 'created_at',
+            'emoji', 'badge', 'image', 'image_url', 'is_active', 'created_by_id', 'created_by_username', 'created_at',
         ]
         read_only_fields = ['created_by_id', 'created_by_username', 'created_at']
 
@@ -305,20 +304,16 @@ class ProductSerializer(serializers.ModelSerializer):
         return obj.created_by.username if obj.created_by else None
 
     def get_image(self, obj):
-        if not obj.image:
-            return None
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
+        return product_image_url(obj, self.context.get('request'))
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
+    image_url = serializers.URLField(required=False, allow_blank=True)
 
     class Meta:
         model  = Product
-        fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'image', 'is_active']
+        fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'image', 'image_url', 'is_active']
         read_only_fields = ['created_by']
 
 
